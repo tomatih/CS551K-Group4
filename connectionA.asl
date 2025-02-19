@@ -8,11 +8,11 @@
 	.print("hello massim world.");
 	myLib.myAi.
 
-+step(X) : true <-
++step(_) : true <-
 	// .print("Received step percept.").
-	true.
+	// myLib.myAi;
+	myLib.myPercept.
 	
 +actionID(_) : true <- 
 	myLib.moveRandom(X);
 	move(X).
-//	skip.
