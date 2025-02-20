@@ -5,10 +5,8 @@ import jason.asSemantics.DefaultInternalAction;
 import jason.asSemantics.InternalAction;
 import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
-import jason.asSyntax.ListTerm;
-import jason.asSyntax.StringTerm;
-import jason.asSyntax.StringTermImpl;
-import jason.asSyntax.Term;
+import jason.asSyntax.*;
+import jason.bb.BeliefBase;
 
 @SuppressWarnings("serial")
 public class myAi extends DefaultInternalAction {
@@ -23,8 +21,15 @@ public class myAi extends DefaultInternalAction {
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
         System.out.println("JAVA HELLO");
-        StateSingleton states = StateSingleton.getInstance();
-        states.register_agent(ts.getAg());
+        BeliefBase bb = ts.getAg().getBB();
+//        LiteralImpl literal = new LiteralImpl("test_belief");
+        PredicateIndicator indicator = new PredicateIndicator("test_belief",1);
+        var iter = bb.getCandidateBeliefs(indicator);
+        Literal test = iter.next();
+
+        System.out.println("Belief: "+test);d
+//        StateSingleton states = StateSingleton.getInstance();
+//        states.register_agent(ts.getAg().hashCode());
         return true;
     }
 

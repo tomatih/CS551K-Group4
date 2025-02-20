@@ -1,5 +1,5 @@
 /* Initial beliefs and rules */
-position(0,0).
+test_belief(1).
 
 /* Initial goals */
 !start.
@@ -10,8 +10,6 @@ position(0,0).
 	myLib.myAi.
 
 +step(_) : true <-
-	// .print("Received step percept.").
-	// myLib.myAi;
 	myLib.myPercept.
 	
 +actionID(_) : true <- 

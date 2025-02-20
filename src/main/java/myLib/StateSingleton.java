@@ -7,7 +7,7 @@ import java.util.HashMap;
 public class StateSingleton {
     private static StateSingleton instance = null;
 
-    private HashMap<Agent, AgentState> states = new HashMap<>();
+    private HashMap<Integer, AgentState> states = new HashMap<>();
 
     public static StateSingleton getInstance() {
         if (instance == null) {
@@ -16,12 +16,11 @@ public class StateSingleton {
         return instance;
     }
 
-    public void register_agent(Agent agent){
-        states.put(agent, new AgentState());
-        System.out.println("registered "+agent.hashCode());
+    public void register_agent(Integer agent_hash){
+        states.put(agent_hash, new AgentState());
     }
 
-    public AgentState get_agent_state(Agent agent){
-        return states.get(agent);
+    public AgentState get_agent_state(Integer agent_hash){
+        return states.get(agent_hash);
     }
 }

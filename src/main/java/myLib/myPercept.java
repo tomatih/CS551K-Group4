@@ -22,8 +22,8 @@ public class myPercept extends DefaultInternalAction {
 
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
-        AgentState state = StateSingleton.getInstance().get_agent_state(ts.getAg());
-        System.out.println(state.pos_x+" "+state.pos_y);
+//        AgentState state = StateSingleton.getInstance().get_agent_state(ts.getAg().hashCode());
+//        System.out.println(state.pos_x+" "+state.pos_y);
         for (Iterator<Literal> it = ts.getAg().getBB().getPercepts(); it.hasNext(); ) {
             Literal l = it.next();
             String functor = l.getFunctor();
