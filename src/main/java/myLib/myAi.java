@@ -23,6 +23,8 @@ public class myAi extends DefaultInternalAction {
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
         System.out.println("JAVA HELLO");
+        StateSingleton states = StateSingleton.getInstance();
+        states.register_agent(ts.getAg());
         return true;
     }
 

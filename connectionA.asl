@@ -1,4 +1,5 @@
 /* Initial beliefs and rules */
+position(0,0).
 
 /* Initial goals */
 !start.

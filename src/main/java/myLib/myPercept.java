@@ -5,7 +5,10 @@ import jason.asSemantics.InternalAction;
 import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
 import jason.asSyntax.Literal;
+import jason.asSyntax.LiteralImpl;
+import jason.asSyntax.StringTermImpl;
 import jason.asSyntax.Term;
+import jason.bb.BeliefBase;
 
 import java.util.Iterator;
 
@@ -19,6 +22,8 @@ public class myPercept extends DefaultInternalAction {
 
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
+        AgentState state = StateSingleton.getInstance().get_agent_state(ts.getAg());
+        System.out.println(state.pos_x+" "+state.pos_y);
         for (Iterator<Literal> it = ts.getAg().getBB().getPercepts(); it.hasNext(); ) {
             Literal l = it.next();
             String functor = l.getFunctor();
