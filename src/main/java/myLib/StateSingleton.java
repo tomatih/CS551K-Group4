@@ -2,6 +2,7 @@ package myLib;
 
 import jason.asSemantics.Agent;
 import jason.asSyntax.PredicateIndicator;
+import jason.asSyntax.StringTermImpl;
 
 import java.util.HashMap;
 
@@ -26,7 +27,8 @@ public class StateSingleton {
         if(name_candidates == null || !name_candidates.hasNext()){
             return new AgentState();
         }
-        var name = name_candidates.next().getTerm(0).toString().substring(1,3);
+
+        var name = ((StringTermImpl)name_candidates.next().getTerm(0)).getString();
         return states.get(name);
     }
 }

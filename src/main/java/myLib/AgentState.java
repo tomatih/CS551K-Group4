@@ -1,7 +1,9 @@
 package myLib;
 
+import java.util.HashSet;
+
 public class AgentState {
-    public int pos_x = 0;
-    public int pos_y = 0;
+    public Position position = new Position(0,0);
     public String agent_name = null;
+    public Position chosen_goal = null;
 }

@@ -28,7 +28,7 @@ public class myPercept extends DefaultInternalAction {
                 case "name" ->{
                     if(state.agent_name == null){
                         // extract agent name
-                        String agent_name = percept.getTerm(0).toString().substring(1,3);
+                        String agent_name = ((StringTermImpl)percept.getTerm(0)).getString();
                         // add it to the belief base
                         LiteralImpl name_literal = new LiteralImpl("agent_name");
                         name_literal.addTerm(new StringTermImpl(agent_name));
@@ -40,8 +40,10 @@ public class myPercept extends DefaultInternalAction {
                 }
                 case "task" -> {}
                 case "goal" -> {
-                    Term pos_x = percept.getTerm(0);
-                    Term pos_y = percept.getTerm(1);
+                    var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
+                    var pos_y = ((NumberTermImpl)percept.getTerm(1)).solve();
+                    var goal_position = new Position((int) pos_x, (int) pos_y);
+                    perception.goals.add(goal_position);
                 }
                 case "obstacle" ->{
                     Term pos_x = percept.getTerm(0);
@@ -77,18 +79,26 @@ public class myPercept extends DefaultInternalAction {
             // handle internal map updates
             if(perception.last_action.equals(myLiterals.action_move)){
                 if(perception.last_action_arg.equals(myLiterals.direction_n)){
-                    state.pos_y += 1;
+                    state.position.y += 1;
                 } else if (perception.last_action_arg.equals(myLiterals.direction_s)) {
-                    state.pos_y -= 1;
+                    state.position.y -= 1;
                 } else if(perception.last_action_arg.equals(myLiterals.direction_w)){
-                    state.pos_x -= 1;
+                    state.position.x -= 1;
                 } else if (perception.last_action_arg.equals(myLiterals.direction_e)) {
-                    state.pos_x += 1;
+                    state.position.x += 1;
                 }
                 else {
                     System.out.println("PANIC MOVE INTO UNKNOWN DIRECTION");
                 }
             }
+        }
+
+        // add observed things to memory
+        if(state.chosen_goal == null && !perception.goals.isEmpty()){
+            Position goal_position = perception.goals.get(0);
+            goal_position.add(state.position);
+            state.chosen_goal = goal_position;
+
         }
 
         return true;
