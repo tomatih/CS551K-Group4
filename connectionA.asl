@@ -1,5 +1,4 @@
 /* Initial beliefs and rules */
-test_belief(1).
 
 /* Initial goals */
 !start.

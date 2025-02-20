@@ -1,13 +1,14 @@
 package myLib;
 
 import jason.asSemantics.Agent;
+import jason.asSyntax.PredicateIndicator;
 
 import java.util.HashMap;
 
 public class StateSingleton {
     private static StateSingleton instance = null;
 
-    private HashMap<Integer, AgentState> states = new HashMap<>();
+    private HashMap<String, AgentState> states = new HashMap<>();
 
     public static StateSingleton getInstance() {
         if (instance == null) {
@@ -16,11 +17,16 @@ public class StateSingleton {
         return instance;
     }
 
-    public void register_agent(Integer agent_hash){
-        states.put(agent_hash, new AgentState());
+    public void register_agent(String agent_name, AgentState state) {
+        states.put(agent_name, state);
     }
 
-    public AgentState get_agent_state(Integer agent_hash){
-        return states.get(agent_hash);
+    public AgentState get_agent_state(Agent agent){
+        var name_candidates = agent.getBB().getCandidateBeliefs(new PredicateIndicator("agent_name",1));
+        if(name_candidates == null || !name_candidates.hasNext()){
+            return new AgentState();
+        }
+        var name = name_candidates.next().getTerm(0).toString().substring(1,3);
+        return states.get(name);
     }
 }

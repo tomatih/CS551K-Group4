@@ -21,15 +21,6 @@ public class myAi extends DefaultInternalAction {
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
         System.out.println("JAVA HELLO");
-        BeliefBase bb = ts.getAg().getBB();
-//        LiteralImpl literal = new LiteralImpl("test_belief");
-        PredicateIndicator indicator = new PredicateIndicator("test_belief",1);
-        var iter = bb.getCandidateBeliefs(indicator);
-        Literal test = iter.next();
-
-        System.out.println("Belief: "+test);d
-//        StateSingleton states = StateSingleton.getInstance();
-//        states.register_agent(ts.getAg().hashCode());
         return true;
     }
 

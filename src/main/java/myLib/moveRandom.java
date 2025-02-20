@@ -26,13 +26,6 @@ public class moveRandom extends DefaultInternalAction {
             throw new JasonException("Variable argument mustn't be a variable");
         }
         int direction = rand.nextInt(directions.length);
-//        AgentState state = StateSingleton.getInstance().get_agent_state(ts.getAg().hashCode());
-//        switch (direction){
-//            case 0 -> state.pos_y += 1;
-//            case 2 -> state.pos_y -= 1;
-//            case 1 -> state.pos_x += 1;
-//            case 3 -> state.pos_x -= 1;
-//        }
         return un.unifies(args[0], new StringTermImpl(directions[direction]));
     }
 }
