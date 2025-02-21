@@ -1,4 +1,4 @@
-package myLib;
+package myLib.state_managment;
 
 import jason.asSemantics.Agent;
 import jason.asSyntax.PredicateIndicator;

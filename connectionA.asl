@@ -6,11 +6,11 @@
 /* Plans */
 +!start : true <- 
 	.print("hello massim world.");
-	myLib.myAi.
+	myLib.actions.myAi.
 
 +step(_) : true <-
-	myLib.myPercept.
+	myLib.actions.myPercept.
 	
 +actionID(_) : true <- 
-	myLib.moveRandom(X);
+	myLib.actions.moveRandom(X);
 	move(X).

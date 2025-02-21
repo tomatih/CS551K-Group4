@@ -1,4 +1,4 @@
-package myLib;
+package myLib.actions;
 
 import jason.JasonException;
 import jason.asSemantics.*;

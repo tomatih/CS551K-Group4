@@ -1,4 +1,4 @@
-package myLib;
+package myLib.helpers;
 
 import jason.asSyntax.Term;
 
@@ -9,4 +9,6 @@ public class PerceptionResults {
     public Term last_action;
     public Term last_action_arg;
     public ArrayList<Position> goals = new ArrayList<Position>();
+    public ArrayList<Position> dispensers_0 = new ArrayList<>();
+    public ArrayList<Position> dispensers_1 = new ArrayList<>();
 }

@@ -1,4 +1,4 @@
-package myLib;
+package myLib.helpers;
 
 public class Position {
     public int x;
@@ -12,6 +12,10 @@ public class Position {
     public void add(Position other){
         x += other.x;
         y += other.y;
+    }
+
+    public int distance(Position other){
+        return Math.abs(x - other.x) + Math.abs(y - other.y);
     }
 
     @Override

@@ -1,10 +1,15 @@
-package myLib;
+package myLib.actions;
 
 import jason.asSemantics.DefaultInternalAction;
 import jason.asSemantics.InternalAction;
 import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
 import jason.asSyntax.*;
+import myLib.helpers.PerceptionResults;
+import myLib.helpers.Position;
+import myLib.helpers.myLiterals;
+import myLib.state_managment.StateMachine;
+import myLib.state_managment.StateSingleton;
 
 import java.util.Iterator;
 
@@ -40,23 +45,36 @@ public class myPercept extends DefaultInternalAction {
                 }
                 case "task" -> {}
                 case "goal" -> {
+                    // get local coordinates
                     var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
                     var pos_y = ((NumberTermImpl)percept.getTerm(1)).solve();
+                    // package them
                     var goal_position = new Position((int) pos_x, (int) pos_y);
                     perception.goals.add(goal_position);
                 }
                 case "obstacle" ->{
                     Term pos_x = percept.getTerm(0);
                     Term pos_y = percept.getTerm(1);
+                    //TODO: handle obstacles
                 }
                 case "thing" -> {
-                    Term pos_x = percept.getTerm(0);
-                    Term pos_y = percept.getTerm(1);
+                    // get local coordinates
+                    var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
+                    var pos_y = ((NumberTermImpl)percept.getTerm(1)).solve();
+                    var entity_position = new Position((int) pos_x, (int) pos_y);
                     String type = percept.getTerm(2).toString();
                     if(type.equals("entity")){
                         //TODO: another bot handling
                     } else if (type.equals("dispenser")) {
-                        Term block_type = percept.getTerm(3);
+                        Term block_type_l = percept.getTerm(3);
+                        if(block_type_l.equals(myLiterals.dispenser_type_0)){
+                            perception.dispensers_0.add(entity_position);
+                        } else if (block_type_l.equals(myLiterals.dispenser_type_1)) {
+                            perception.dispensers_1.add(entity_position);
+                        }
+                        else {
+                            System.out.println("PANIC UNKNOWN DISPENSER TYPE");
+                        }
                     }
                 }
                 case "lastActionResult" -> {
@@ -98,8 +116,63 @@ public class myPercept extends DefaultInternalAction {
             Position goal_position = perception.goals.get(0);
             goal_position.add(state.position);
             state.chosen_goal = goal_position;
-
         }
+
+        //TODO: remember dispensers found before the goal
+        if(state.chosen_goal != null){
+            for(Position pos : perception.dispensers_0){
+                pos.add(state.position);
+                if (state.closest_dispenser_0 == null){
+                    state.closest_dispenser_0 = pos;
+                }
+                else {
+                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_0);
+                    int new_distance = pos.distance(state.chosen_goal);
+                    if(new_distance < current_distance){
+                        state.closest_dispenser_0 = pos;
+                    }
+                }
+            }
+
+            for(Position pos : perception.dispensers_1){
+                pos.add(state.position);
+                if (state.closest_dispenser_1 == null){
+                    state.closest_dispenser_1 = pos;
+                }
+                else {
+                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_1);
+                    int new_distance = pos.distance(state.chosen_goal);
+                    if(new_distance < current_distance){
+                        state.closest_dispenser_1 = pos;
+                    }
+                }
+            }
+        }
+
+        // update state
+        switch (state.stateMachine){
+            case Lost -> {
+                if(state.chosen_goal != null && state.closest_dispenser_0 != null && state.closest_dispenser_1 != null){
+                    state.stateMachine = StateMachine.Idle;
+                    System.out.println("Bot fully initialized: "+state.agent_name);
+                }
+            }
+            case Idle -> {
+            }
+            case Going_to_dispenser -> {
+            }
+            case At_dispenser -> {
+            }
+            case About_to_attach -> {
+            }
+            case Going_to_goal -> {
+            }
+            case Rotating -> {
+            }
+            case Submit -> {
+            }
+        }
+
 
         return true;
     }
