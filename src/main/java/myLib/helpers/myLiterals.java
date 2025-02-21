@@ -17,4 +17,7 @@ public class myLiterals {
 
     static final public LiteralImpl choice_move = new LiteralImpl("m");
     static final public LiteralImpl choice_skip = new LiteralImpl("s");
+
+    static final public LiteralImpl block_type_0 = new LiteralImpl("b0");
+    static final public LiteralImpl block_type_1 = new LiteralImpl("b1");
 }

@@ -7,6 +7,7 @@ import jason.asSemantics.Unifier;
 import jason.asSyntax.*;
 import myLib.helpers.PerceptionResults;
 import myLib.helpers.Position;
+import myLib.helpers.Task;
 import myLib.helpers.myLiterals;
 import myLib.state_managment.StateMachine;
 import myLib.state_managment.StateSingleton;
@@ -43,7 +44,21 @@ public class myPercept extends DefaultInternalAction {
                         StateSingleton.getInstance().register_agent(agent_name, state);
                     }
                 }
-                case "task" -> {}
+                case "task" -> {
+                    int deadline = (int)((NumberTermImpl)percept.getTerm(1)).solve();
+                    int value = (int)((NumberTermImpl)percept.getTerm(2)).solve();
+                    // filter out dead and 2 block tasks
+                    if(value != 10 || deadline < state.step){
+                        continue;
+                    }
+                    String task_id = ((Atom)percept.getTerm(0)).getFunctor();
+                    var block_definition = (Structure)((ListTermImpl)percept.getTerm(3)).get(0);
+                    boolean is_type_0 = block_definition.getTerm(2).equals(myLiterals.block_type_0);
+                    int offset_x = (int)((NumberTermImpl)percept.getTerm(0)).solve();
+                    int offset_y = (int)((NumberTermImpl)percept.getTerm(1)).solve();
+                    Task task = new Task(task_id,new Position(offset_x, offset_y), is_type_0);
+                    perception.available_tasks.add(task);
+                }
                 case "goal" -> {
                     // get local coordinates
                     var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
@@ -87,11 +102,13 @@ public class myPercept extends DefaultInternalAction {
                 case "lastActionParams" -> {
                     perception.last_action_arg = ((ListTermImpl)percept.getTerm(0)).get(0); // safe as all have only one parameter
                 }
-//                case "vision","energy","team","timestamp","disabled","score","step","steps","deadline","simStart","actionID","requestAction"->{}
+                case "step" ->{
+                    state.step = (int)((NumberTermImpl)percept.getTerm(0)).solve();
+                }
+//                case "vision","energy","team","timestamp","disabled","score","steps","deadline","simStart","actionID","requestAction"->{}
                 default -> {}
             }
         }
-
         // update internal state based on last action
         if(perception.last_action_success){
             // handle internal map updates
