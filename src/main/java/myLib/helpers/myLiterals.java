@@ -14,4 +14,7 @@ public class myLiterals {
 
     static final public LiteralImpl dispenser_type_0 = new LiteralImpl("b0");
     static final public LiteralImpl dispenser_type_1 = new LiteralImpl("b1");
+
+    static final public LiteralImpl choice_move = new LiteralImpl("m");
+    static final public LiteralImpl choice_skip = new LiteralImpl("s");
 }

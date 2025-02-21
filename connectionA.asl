@@ -12,5 +12,10 @@
 	myLib.actions.myPercept.
 	
 +actionID(_) : true <- 
-	myLib.actions.moveRandom(X);
-	move(X).
+	myLib.actions.myAction(A);
+	!execute(A).
+	// myLib.actions.moveRandom(X);
+	// move(X).
+
++!execute(m(D)) : true <- move(D).
++!execute(s) : true <- skip.
