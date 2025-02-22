@@ -7,6 +7,7 @@ import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
 import jason.asSyntax.LiteralImpl;
 import jason.asSyntax.Term;
+import myLib.helpers.Position;
 import myLib.helpers.myLiterals;
 import myLib.state_managment.StateSingleton;
 
@@ -65,6 +66,37 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], myLiterals.choice_skip);
             }
             case Going_to_dispenser -> {
+                //TODO: obstacle avoidance and better navigation
+
+                Position dispenser = null;
+                if(state.current_task.is_type_0){
+                    dispenser = state.closest_dispenser_0;
+                }
+                else {
+                    dispenser = state.closest_dispenser_1;
+                }
+                System.out.println("Bot "+state.agent_name+" at "+state.position+" going to "+dispenser);
+                // first align vertical
+                LiteralImpl direction = null;
+                if(state.position.y != dispenser.y ){
+                    if(dispenser.y > state.position.y){
+                        direction = myLiterals.direction_n;
+                    }
+                    else {
+                        direction = myLiterals.direction_s;
+                    }
+                }
+                else {
+                    if(dispenser.x > state.position.x){
+                        direction = myLiterals.direction_e;
+                    }
+                    else {
+                        direction = myLiterals.direction_w;
+                    }
+                }
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
+                base_literal.addTerm(direction);
+                return un.unifies(args[0], base_literal);
             }
             case At_dispenser -> {
             }

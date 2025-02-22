@@ -54,8 +54,8 @@ public class myPercept extends DefaultInternalAction {
                     String task_id = ((Atom)percept.getTerm(0)).getFunctor();
                     var block_definition = (Structure)((ListTermImpl)percept.getTerm(3)).get(0);
                     boolean is_type_0 = block_definition.getTerm(2).equals(myLiterals.block_type_0);
-                    int offset_x = (int)((NumberTermImpl)percept.getTerm(0)).solve();
-                    int offset_y = (int)((NumberTermImpl)percept.getTerm(1)).solve();
+                    int offset_x = (int)((NumberTermImpl)block_definition.getTerm(0)).solve();
+                    int offset_y = (int)((NumberTermImpl)block_definition.getTerm(1)).solve();
                     Task task = new Task(task_id,new Position(offset_x, offset_y), is_type_0);
                     perception.available_tasks.add(task);
                 }
@@ -175,8 +175,21 @@ public class myPercept extends DefaultInternalAction {
                 }
             }
             case Idle -> {
+                //TODO: task selection logic
+                state.current_task = perception.available_tasks.get(0);
+                state.stateMachine = StateMachine.Going_to_dispenser;
+                System.out.println("Bot "+state.agent_name+" picked task "+state.current_task.id);
             }
             case Going_to_dispenser -> {
+                if(state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_0)){
+                    state.stateMachine = StateMachine.At_dispenser;
+                    System.out.println("Bot "+state.agent_name+" at dispenser");
+                }
+                if(!state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_1)){
+                    state.stateMachine = StateMachine.At_dispenser;
+                    System.out.println("Bot "+state.agent_name+" at dispenser");
+                }
+
             }
             case At_dispenser -> {
             }
