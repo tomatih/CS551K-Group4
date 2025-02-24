@@ -75,18 +75,17 @@ public class myAction extends DefaultInternalAction {
                 else {
                     dispenser = state.closest_dispenser_1;
                 }
-                System.out.println("Bot "+state.agent_name+" at "+state.position+" going to "+dispenser);
                 // first align vertical
                 LiteralImpl direction = null;
                 if(state.position.y != dispenser.y ){
                     if(dispenser.y > state.position.y){
-                        direction = myLiterals.direction_n;
-                    }
-                    else {
                         direction = myLiterals.direction_s;
                     }
+                    else {
+                        direction = myLiterals.direction_n;
+                    }
                 }
-                else {
+                else if(state.position.x != dispenser.x) {
                     if(dispenser.x > state.position.x){
                         direction = myLiterals.direction_e;
                     }
@@ -94,11 +93,15 @@ public class myAction extends DefaultInternalAction {
                         direction = myLiterals.direction_w;
                     }
                 }
+                else {
+                    return un.unifies(args[0], myLiterals.choice_skip);
+                }
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
                 base_literal.addTerm(direction);
                 return un.unifies(args[0], base_literal);
             }
             case At_dispenser -> {
+                return un.unifies(args[0], myLiterals.choice_skip);
             }
             case About_to_attach -> {
             }

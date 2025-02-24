@@ -16,6 +16,7 @@ import java.util.Iterator;
 
 public class myPercept extends DefaultInternalAction {
     private static InternalAction singleton = null;
+
     public static InternalAction create() {
         if (singleton == null)
             singleton = new myPercept();
@@ -30,11 +31,11 @@ public class myPercept extends DefaultInternalAction {
         var perception = new PerceptionResults();
         for (Iterator<Literal> it = ts.getAg().getBB().getPercepts(); it.hasNext(); ) {
             Literal percept = it.next();
-            switch (percept.getFunctor()){
-                case "name" ->{
-                    if(state.agent_name == null){
+            switch (percept.getFunctor()) {
+                case "name" -> {
+                    if (state.agent_name == null) {
                         // extract agent name
-                        String agent_name = ((StringTermImpl)percept.getTerm(0)).getString();
+                        String agent_name = ((StringTermImpl) percept.getTerm(0)).getString();
                         // add it to the belief base
                         LiteralImpl name_literal = new LiteralImpl("agent_name");
                         name_literal.addTerm(new StringTermImpl(agent_name));
@@ -45,49 +46,40 @@ public class myPercept extends DefaultInternalAction {
                     }
                 }
                 case "task" -> {
-                    int deadline = (int)((NumberTermImpl)percept.getTerm(1)).solve();
-                    int value = (int)((NumberTermImpl)percept.getTerm(2)).solve();
+                    int deadline = (int) ((NumberTermImpl) percept.getTerm(1)).solve();
+                    int value = (int) ((NumberTermImpl) percept.getTerm(2)).solve();
                     // filter out dead and 2 block tasks
-                    if(value != 10 || deadline < state.step){
+                    if (value != 10 || deadline < state.step) {
                         continue;
                     }
-                    String task_id = ((Atom)percept.getTerm(0)).getFunctor();
-                    var block_definition = (Structure)((ListTermImpl)percept.getTerm(3)).get(0);
+                    String task_id = ((Atom) percept.getTerm(0)).getFunctor();
+                    var block_definition = (Structure) ((ListTermImpl) percept.getTerm(3)).get(0);
                     boolean is_type_0 = block_definition.getTerm(2).equals(myLiterals.block_type_0);
-                    int offset_x = (int)((NumberTermImpl)block_definition.getTerm(0)).solve();
-                    int offset_y = (int)((NumberTermImpl)block_definition.getTerm(1)).solve();
-                    Task task = new Task(task_id,new Position(offset_x, offset_y), is_type_0);
+                    var offset = Position.from_terms(block_definition.getTerm(0), block_definition.getTerm(1));
+                    Task task = new Task(task_id, offset, is_type_0);
                     perception.available_tasks.add(task);
                 }
                 case "goal" -> {
-                    // get local coordinates
-                    var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
-                    var pos_y = ((NumberTermImpl)percept.getTerm(1)).solve();
                     // package them
-                    var goal_position = new Position((int) pos_x, (int) pos_y);
+                    var goal_position = Position.from_terms(percept.getTerm(0), percept.getTerm(1));
                     perception.goals.add(goal_position);
                 }
-                case "obstacle" ->{
-                    Term pos_x = percept.getTerm(0);
-                    Term pos_y = percept.getTerm(1);
+                case "obstacle" -> {
                     //TODO: handle obstacles
                 }
                 case "thing" -> {
                     // get local coordinates
-                    var pos_x = ((NumberTermImpl)percept.getTerm(0)).solve();
-                    var pos_y = ((NumberTermImpl)percept.getTerm(1)).solve();
-                    var entity_position = new Position((int) pos_x, (int) pos_y);
+                    var entity_position = Position.from_terms(percept.getTerm(0), percept.getTerm(1));
                     String type = percept.getTerm(2).toString();
-                    if(type.equals("entity")){
+                    if (type.equals("entity")) {
                         //TODO: another bot handling
                     } else if (type.equals("dispenser")) {
                         Term block_type_l = percept.getTerm(3);
-                        if(block_type_l.equals(myLiterals.dispenser_type_0)){
+                        if (block_type_l.equals(myLiterals.dispenser_type_0)) {
                             perception.dispensers_0.add(entity_position);
                         } else if (block_type_l.equals(myLiterals.dispenser_type_1)) {
                             perception.dispensers_1.add(entity_position);
-                        }
-                        else {
+                        } else {
                             System.out.println("PANIC UNKNOWN DISPENSER TYPE");
                         }
                     }
@@ -96,70 +88,63 @@ public class myPercept extends DefaultInternalAction {
                     LiteralImpl success_literal = new LiteralImpl("success");
                     perception.last_action_success = percept.getTerm(0).equals(success_literal);
                 }
-                case "lastAction" ->{
+                case "lastAction" -> {
                     perception.last_action = percept.getTerm(0);
                 }
                 case "lastActionParams" -> {
-                    perception.last_action_arg = ((ListTermImpl)percept.getTerm(0)).get(0); // safe as all have only one parameter
+                    perception.last_action_arg = ((ListTermImpl) percept.getTerm(0)).get(0); // safe as all have only one parameter
                 }
-                case "step" ->{
-                    state.step = (int)((NumberTermImpl)percept.getTerm(0)).solve();
+                case "step" -> {
+                    state.step = (int) ((NumberTermImpl) percept.getTerm(0)).solve();
                 }
 //                case "vision","energy","team","timestamp","disabled","score","steps","deadline","simStart","actionID","requestAction"->{}
-                default -> {}
+                default -> {
+                }
             }
         }
         // update internal state based on last action
-        if(perception.last_action_success){
+        if (perception.last_action_success) {
             // handle internal map updates
-            if(perception.last_action.equals(myLiterals.action_move)){
-                if(perception.last_action_arg.equals(myLiterals.direction_n)){
-                    state.position.y += 1;
-                } else if (perception.last_action_arg.equals(myLiterals.direction_s)) {
-                    state.position.y -= 1;
-                } else if(perception.last_action_arg.equals(myLiterals.direction_w)){
-                    state.position.x -= 1;
-                } else if (perception.last_action_arg.equals(myLiterals.direction_e)) {
-                    state.position.x += 1;
-                }
-                else {
+            if (perception.last_action.equals(myLiterals.action_move)) {
+                Position move_dir = Position.from_direction(perception.last_action_arg);
+                if (move_dir == null) {
                     System.out.println("PANIC MOVE INTO UNKNOWN DIRECTION");
+                    return false;
                 }
+                state.position.add(move_dir);
             }
         }
 
         // add observed things to memory
-        if(state.chosen_goal == null && !perception.goals.isEmpty()){
+        if (state.chosen_goal == null && !perception.goals.isEmpty()) {
             Position goal_position = perception.goals.get(0);
             goal_position.add(state.position);
             state.chosen_goal = goal_position;
         }
 
         //TODO: remember dispensers found before the goal
-        if(state.chosen_goal != null){
-            for(Position pos : perception.dispensers_0){
+        if (state.chosen_goal != null) {
+            for (Position pos : perception.dispensers_0) {
                 pos.add(state.position);
-                if (state.closest_dispenser_0 == null){
+                if (state.closest_dispenser_0 == null) {
                     state.closest_dispenser_0 = pos;
-                }
-                else {
+                } else {
                     int current_distance = state.chosen_goal.distance(state.closest_dispenser_0);
                     int new_distance = pos.distance(state.chosen_goal);
-                    if(new_distance < current_distance){
+                    if (new_distance < current_distance) {
                         state.closest_dispenser_0 = pos;
                     }
                 }
             }
 
-            for(Position pos : perception.dispensers_1){
+            for (Position pos : perception.dispensers_1) {
                 pos.add(state.position);
-                if (state.closest_dispenser_1 == null){
+                if (state.closest_dispenser_1 == null) {
                     state.closest_dispenser_1 = pos;
-                }
-                else {
+                } else {
                     int current_distance = state.chosen_goal.distance(state.closest_dispenser_1);
                     int new_distance = pos.distance(state.chosen_goal);
-                    if(new_distance < current_distance){
+                    if (new_distance < current_distance) {
                         state.closest_dispenser_1 = pos;
                     }
                 }
@@ -167,27 +152,27 @@ public class myPercept extends DefaultInternalAction {
         }
 
         // update state
-        switch (state.stateMachine){
+        switch (state.stateMachine) {
             case Lost -> {
-                if(state.chosen_goal != null && state.closest_dispenser_0 != null && state.closest_dispenser_1 != null){
+                if (state.chosen_goal != null && state.closest_dispenser_0 != null && state.closest_dispenser_1 != null) {
                     state.stateMachine = StateMachine.Idle;
-                    System.out.println("Bot fully initialized: "+state.agent_name);
+                    System.out.println("Bot " + state.agent_name + " fully initialized");
                 }
             }
             case Idle -> {
                 //TODO: task selection logic
                 state.current_task = perception.available_tasks.get(0);
                 state.stateMachine = StateMachine.Going_to_dispenser;
-                System.out.println("Bot "+state.agent_name+" picked task "+state.current_task.id);
+                System.out.println("Bot " + state.agent_name + " picked task " + state.current_task.id);
             }
             case Going_to_dispenser -> {
-                if(state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_0)){
+                if (state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_0)) {
                     state.stateMachine = StateMachine.At_dispenser;
-                    System.out.println("Bot "+state.agent_name+" at dispenser");
+                    System.out.println("Bot " + state.agent_name + " at dispenser");
                 }
-                if(!state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_1)){
+                if (!state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_1)) {
                     state.stateMachine = StateMachine.At_dispenser;
-                    System.out.println("Bot "+state.agent_name+" at dispenser");
+                    System.out.println("Bot " + state.agent_name + " at dispenser");
                 }
 
             }
