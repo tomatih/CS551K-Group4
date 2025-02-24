@@ -1,3 +1,4 @@
 # ingore build artifacts
 build/
 .gradle/
+bin/
