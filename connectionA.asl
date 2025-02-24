@@ -19,25 +19,27 @@ random_dir(DirList,RandomNumber,Dir) :-
     .print("Initializing agent.");
     ?my_name(Name);
     .print("My name is: ", Name);
-    !move_sequence.
+    !move_right.
 
 +step(X) : true <-
     .print("Received step percept.");
-    !move_sequence.
+    !move_right.
 
-+!move_sequence : true <-
-    !move_n(e, 5);
-    !move_n(s, 5);
-    !move_n(w, 10);
-    !move_n(n, 10);
-    !move_n(e, 10).
++!move_right : true <-
+    .print("Attempting to move right.");
+    move(e);
+    !check_block.
 
-+!move_n(Dir, 0) : true <- .print("Finished moving in direction: ", Dir).
-+!move_n(Dir, N) : (N > 0) <-
-    .print("Moving ", Dir, " - Remaining: ", N);
-    move(Dir);
-    N1 = N - 1;
-    !move_n(Dir, N1).
++!check_block : true <-
+    .wait(2);
+    ?free_directions(Dirs);
+    ( .member(e, Dirs) -> 
+        .print("Path is clear, moving right again");
+        !move_right
+    ;
+        .print("Right blocked, moving left 1 step and stopping.");
+        move(w)
+    ).
 
 // Perceiving free directions from the environment
 +free_directions(Dirs) : true <-
