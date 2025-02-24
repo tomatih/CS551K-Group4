@@ -183,6 +183,10 @@ public class myPercept extends DefaultInternalAction {
                 }
             }
             case About_to_attach -> {
+                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_attach)) {
+                    state.stateMachine = StateMachine.Going_to_goal;
+                    System.out.println("Bot " + state.agent_name + " attached to block");
+                }
             }
             case Going_to_goal -> {
             }

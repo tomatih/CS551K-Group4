@@ -133,6 +133,32 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], base_literal);
             }
             case About_to_attach -> {
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_attach.copy();
+                LiteralImpl direction = null;
+                Position dispenser = null;
+                if(state.current_task.is_type_0){
+                    dispenser = state.closest_dispenser_0;
+                }
+                else {
+                    dispenser = state.closest_dispenser_1;
+                }
+                if(dispenser.y > state.position.y){
+                    direction = myLiterals.direction_s;
+                }
+                else if(dispenser.y < state.position.y){
+                    direction = myLiterals.direction_n;
+                }
+                else if(dispenser.x > state.position.x){
+                    direction = myLiterals.direction_e;
+                } else if (dispenser.x < state.position.x) {
+                    direction = myLiterals.direction_w;
+                }
+                else {
+                    System.out.println("PANIC ON TOP OF DISPENSER");
+                    return false;
+                }
+                base_literal.addTerm(direction);
+                return un.unifies(args[0], base_literal);
             }
             case Going_to_goal -> {
             }
