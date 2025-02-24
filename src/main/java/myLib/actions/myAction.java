@@ -77,6 +77,9 @@ public class myAction extends DefaultInternalAction {
                 }
                 // first align vertical
                 LiteralImpl direction = null;
+                if(state.position.distance(dispenser) == 1){
+                    return un.unifies(args[0], myLiterals.choice_skip);
+                }
                 if(state.position.y != dispenser.y ){
                     if(dispenser.y > state.position.y){
                         direction = myLiterals.direction_s;
@@ -94,14 +97,40 @@ public class myAction extends DefaultInternalAction {
                     }
                 }
                 else {
-                    return un.unifies(args[0], myLiterals.choice_skip);
+                    System.out.println("PANIC ON TOP OF DISPENSER");
+                    return false;
                 }
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
                 base_literal.addTerm(direction);
                 return un.unifies(args[0], base_literal);
             }
             case At_dispenser -> {
-                return un.unifies(args[0], myLiterals.choice_skip);
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_request.copy();
+                LiteralImpl direction = null;
+                Position dispenser = null;
+                if(state.current_task.is_type_0){
+                    dispenser = state.closest_dispenser_0;
+                }
+                else {
+                    dispenser = state.closest_dispenser_1;
+                }
+                if(dispenser.y > state.position.y){
+                    direction = myLiterals.direction_s;
+                }
+                else if(dispenser.y < state.position.y){
+                    direction = myLiterals.direction_n;
+                }
+                else if(dispenser.x > state.position.x){
+                    direction = myLiterals.direction_e;
+                } else if (dispenser.x < state.position.x) {
+                    direction = myLiterals.direction_w;
+                }
+                else {
+                    System.out.println("PANIC ON TOP OF DISPENSER");
+                    return false;
+                }
+                base_literal.addTerm(direction);
+                return un.unifies(args[0], base_literal);
             }
             case About_to_attach -> {
             }

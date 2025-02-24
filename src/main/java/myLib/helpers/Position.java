@@ -17,6 +17,7 @@ public class Position {
         y += other.y;
     }
 
+    //TODO: fix delta 1 on corners
     public int distance(Position other){
         return Math.abs(x - other.x) + Math.abs(y - other.y);
     }

@@ -166,17 +166,21 @@ public class myPercept extends DefaultInternalAction {
                 System.out.println("Bot " + state.agent_name + " picked task " + state.current_task.id);
             }
             case Going_to_dispenser -> {
-                if (state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_0)) {
+                if (state.current_task.is_type_0 && state.position.distance(state.closest_dispenser_0) == 1) {
                     state.stateMachine = StateMachine.At_dispenser;
                     System.out.println("Bot " + state.agent_name + " at dispenser");
                 }
-                if (!state.current_task.is_type_0 && state.position.equals(state.closest_dispenser_1)) {
+                if (!state.current_task.is_type_0 && state.position.distance(state.closest_dispenser_1) == 1) {
                     state.stateMachine = StateMachine.At_dispenser;
                     System.out.println("Bot " + state.agent_name + " at dispenser");
                 }
 
             }
             case At_dispenser -> {
+                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_request)) {
+                    state.stateMachine = StateMachine.About_to_attach;
+                    System.out.println("Bot " + state.agent_name + " got block");
+                }
             }
             case About_to_attach -> {
             }
