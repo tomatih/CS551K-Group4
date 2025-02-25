@@ -87,6 +87,9 @@ public class myPercept extends DefaultInternalAction {
                 case "lastActionResult" -> {
                     LiteralImpl success_literal = new LiteralImpl("success");
                     perception.last_action_success = percept.getTerm(0).equals(success_literal);
+                    if(!perception.last_action_success){
+                        System.out.println(percept);
+                    }
                 }
                 case "lastAction" -> {
                     perception.last_action = percept.getTerm(0);
@@ -162,6 +165,29 @@ public class myPercept extends DefaultInternalAction {
             case Idle -> {
                 //TODO: task selection logic
                 state.current_task = perception.available_tasks.get(0);
+
+                if(state.current_task.is_type_0){
+                    state.moveGoal = state.closest_dispenser_0.clone();
+                }
+                else {
+                    state.moveGoal = state.closest_dispenser_1.clone();
+                }
+
+                if(state.position.y != state.moveGoal.y){
+                    if(state.position.x > state.moveGoal.x){
+                        state.moveGoal.add(1,0);
+                    }
+                    else {
+                        state.moveGoal.add(-1,0);
+                    }
+                }
+                else if(state.position.x > state.moveGoal.x){
+                    state.moveGoal.add(0,1);
+                }
+                else{
+                    state.moveGoal.add(0,-1);
+                }
+
                 state.stateMachine = StateMachine.Going_to_dispenser;
                 System.out.println("Bot " + state.agent_name + " picked task " + state.current_task.id);
             }
@@ -189,10 +215,18 @@ public class myPercept extends DefaultInternalAction {
                 }
             }
             case Going_to_goal -> {
+                if(state.position.equals(state.chosen_goal)){
+                    System.out.println("Bot " + state.agent_name + " at goal");
+                    state.stateMachine = StateMachine.Submit;
+                }
             }
             case Rotating -> {
             }
             case Submit -> {
+                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_submit)) {
+                    System.out.println("Bot " + state.agent_name + "submitted task");
+                    state.stateMachine = StateMachine.Idle;
+                }
             }
         }
 

@@ -12,4 +12,5 @@ public class AgentState {
     public Position closest_dispenser_1 = null;
     public StateMachine stateMachine = StateMachine.Lost;
     public Task current_task = null;
+    public Position moveGoal = null;
 }

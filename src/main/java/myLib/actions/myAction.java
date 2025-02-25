@@ -6,6 +6,7 @@ import jason.asSemantics.InternalAction;
 import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
 import jason.asSyntax.LiteralImpl;
+import jason.asSyntax.StringTermImpl;
 import jason.asSyntax.Term;
 import myLib.helpers.Position;
 import myLib.helpers.myLiterals;
@@ -66,39 +67,28 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], myLiterals.choice_skip);
             }
             case Going_to_dispenser -> {
-                //TODO: obstacle avoidance and better navigation
-
-                Position dispenser = null;
-                if(state.current_task.is_type_0){
-                    dispenser = state.closest_dispenser_0;
-                }
-                else {
-                    dispenser = state.closest_dispenser_1;
-                }
                 // first align vertical
                 LiteralImpl direction = null;
-                if(state.position.distance(dispenser) == 1){
-                    return un.unifies(args[0], myLiterals.choice_skip);
-                }
-                if(state.position.y != dispenser.y ){
-                    if(dispenser.y > state.position.y){
+                if(state.position.y != state.moveGoal.y ){
+                    if(state.moveGoal.y > state.position.y){
                         direction = myLiterals.direction_s;
                     }
                     else {
                         direction = myLiterals.direction_n;
                     }
                 }
-                else if(state.position.x != dispenser.x) {
-                    if(dispenser.x > state.position.x){
+                // then align horizontal
+                else if(state.position.x != state.moveGoal.x) {
+                    if(state.moveGoal.x > state.position.x){
                         direction = myLiterals.direction_e;
                     }
                     else {
                         direction = myLiterals.direction_w;
                     }
                 }
+                // onm top but for some reason sensing hasn't activated yet
                 else {
-                    System.out.println("PANIC ON TOP OF DISPENSER");
-                    return false;
+                    return un.unifies(args[0], myLiterals.choice_skip);
                 }
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
                 base_literal.addTerm(direction);
@@ -126,7 +116,7 @@ public class myAction extends DefaultInternalAction {
                     direction = myLiterals.direction_w;
                 }
                 else {
-                    System.out.println("PANIC ON TOP OF DISPENSER");
+                    System.out.println("PANIC TOO CLOSE TO A DISPENSER");
                     return false;
                 }
                 base_literal.addTerm(direction);
@@ -161,10 +151,40 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], base_literal);
             }
             case Going_to_goal -> {
+                Position goal = state.chosen_goal;
+
+                // first align vertical
+                LiteralImpl direction = null;
+                if(state.position.y != goal.y ){
+                    if(goal.y > state.position.y){
+                        direction = myLiterals.direction_s;
+                    }
+                    else {
+                        direction = myLiterals.direction_n;
+                    }
+                }
+                else if(state.position.x != goal.x) {
+                    if(goal.x > state.position.x){
+                        direction = myLiterals.direction_e;
+                    }
+                    else {
+                        direction = myLiterals.direction_w;
+                    }
+                }
+                else {
+                    return un.unifies(args[0], myLiterals.choice_skip);
+                }
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
+                base_literal.addTerm(direction);
+                return un.unifies(args[0], base_literal);
             }
             case Rotating -> {
             }
             case Submit -> {
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_submit.copy();
+                base_literal.addTerm(new StringTermImpl(state.current_task.id));
+                System.out.println("Bot "+state.agent_name+" attempting to submit "+state.current_task.id);
+                return un.unifies(args[0], base_literal);
             }
         }
 

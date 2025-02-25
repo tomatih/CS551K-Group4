@@ -3,7 +3,7 @@ package myLib.helpers;
 import jason.asSyntax.NumberTermImpl;
 import jason.asSyntax.Term;
 
-public class Position {
+public class Position implements Cloneable {
     public int x;
     public int y;
 
@@ -15,6 +15,11 @@ public class Position {
     public void add(Position other){
         x += other.x;
         y += other.y;
+    }
+
+    public void add(int x, int y ){
+        this.x += x;
+        this.y += y;
     }
 
     //TODO: fix delta 1 on corners
@@ -49,6 +54,28 @@ public class Position {
         int pos_x = (int)((NumberTermImpl)x).solve();
         int pos_y = (int)((NumberTermImpl)y).solve();
         return new Position(pos_x, pos_y);
+    }
+
+    @Override
+    public Position clone() {
+        try {
+            Position clone = (Position) super.clone();
+            // TODO: copy mutable state here, so the clone can't change the internals of the original
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if(other instanceof Position){
+            Position p = (Position) other;
+            return p.x == x && p.y == y;
+        }
+        else {
+            return false;
+        }
     }
 }
 

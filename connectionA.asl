@@ -20,4 +20,5 @@
 +!execute(m(D)) : true <- move(D).
 +!execute(r(D)) : true <- request(D).
 +!execute(a(D)) : true <- attach(D).
++!execute(p(T)) : true <- submit(T).
 +!execute(s) : true <- skip.
