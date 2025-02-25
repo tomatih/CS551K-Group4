@@ -21,4 +21,5 @@
 +!execute(r(D)) : true <- request(D).
 +!execute(a(D)) : true <- attach(D).
 +!execute(p(T)) : true <- submit(T).
++!execute(t(D)) : true <- rotate(D).
 +!execute(s) : true <- skip.

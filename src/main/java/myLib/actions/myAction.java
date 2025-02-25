@@ -41,6 +41,8 @@ public class myAction extends DefaultInternalAction {
             return true;
         }
 
+        //TODO: navigation sometimes is off by 1 especially on diagonal corners
+        //TODO: remove all panics
         switch (state.stateMachine) {
             case Lost -> {
                 // move randomly to explore
@@ -179,6 +181,10 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], base_literal);
             }
             case Rotating -> {
+                //TODO: make more efficient rotation
+                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_rotate.copy();
+                base_literal.addTerm(myLiterals.direction_clockwise);
+                return un.unifies(args[0], base_literal);
             }
             case Submit -> {
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_submit.copy();

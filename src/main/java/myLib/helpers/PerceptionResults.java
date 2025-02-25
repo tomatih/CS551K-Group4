@@ -12,4 +12,5 @@ public class PerceptionResults {
     public ArrayList<Position> dispensers_0 = new ArrayList<>();
     public ArrayList<Position> dispensers_1 = new ArrayList<>();
     public ArrayList<Task> available_tasks = new ArrayList<>();
+    public Position attached_block_position = null;
 }

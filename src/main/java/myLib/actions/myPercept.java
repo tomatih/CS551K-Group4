@@ -83,13 +83,13 @@ public class myPercept extends DefaultInternalAction {
                             System.out.println("PANIC UNKNOWN DISPENSER TYPE");
                         }
                     }
+                    else if(type.equals("block")) {
+                        perception.attached_block_position = entity_position;
+                    }
                 }
                 case "lastActionResult" -> {
                     LiteralImpl success_literal = new LiteralImpl("success");
                     perception.last_action_success = percept.getTerm(0).equals(success_literal);
-                    if(!perception.last_action_success){
-                        System.out.println(percept);
-                    }
                 }
                 case "lastAction" -> {
                     perception.last_action = percept.getTerm(0);
@@ -217,10 +217,14 @@ public class myPercept extends DefaultInternalAction {
             case Going_to_goal -> {
                 if(state.position.equals(state.chosen_goal)){
                     System.out.println("Bot " + state.agent_name + " at goal");
-                    state.stateMachine = StateMachine.Submit;
+                    state.stateMachine = StateMachine.Rotating;
                 }
             }
             case Rotating -> {
+                if(perception.attached_block_position.x == 0 && perception.attached_block_position.y ==  1){
+                    System.out.println("Bot " + state.agent_name + " fully rotated");
+                    state.stateMachine = StateMachine.Submit;
+                }
             }
             case Submit -> {
                 if(perception.last_action_success && perception.last_action.equals(myLiterals.action_submit)) {
