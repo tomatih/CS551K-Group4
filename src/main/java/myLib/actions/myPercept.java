@@ -1,14 +1,17 @@
 package myLib.actions;
 
+import jason.JasonException;
 import jason.asSemantics.DefaultInternalAction;
 import jason.asSemantics.InternalAction;
 import jason.asSemantics.TransitionSystem;
 import jason.asSemantics.Unifier;
 import jason.asSyntax.*;
+import jason.bb.BeliefBase;
 import myLib.helpers.PerceptionResults;
 import myLib.helpers.Position;
 import myLib.helpers.Task;
 import myLib.helpers.myLiterals;
+import myLib.state_managment.AgentState;
 import myLib.state_managment.StateMachine;
 import myLib.state_managment.StateSingleton;
 
@@ -25,11 +28,74 @@ public class myPercept extends DefaultInternalAction {
 
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
-        var state = StateSingleton.getInstance().get_agent_state(ts.getAg());
 
-        // parse the list of percceptions into a single struct
+        // parse the list of perceptions into a single struct
+        var state = StateSingleton.getInstance().get_agent_state(ts.getAg());
+        PerceptionResults perception = parse_percepts(ts.getAg().getBB(), state);
+
+        // update internal state based on last action
+        if (perception.last_action_success) {
+            // handle internal map updates
+            if (perception.last_action.equals(myLiterals.action_move)) {
+                Position move_dir = Position.from_direction(perception.last_action_arg);
+                if (move_dir == null) {
+                    System.out.println("PANIC MOVE INTO UNKNOWN DIRECTION");
+                    return false;
+                }
+                state.position.add(move_dir);
+            } else if (perception.last_action.equals(myLiterals.action_rotate)) {
+                if (state.dispenser_access_direction.equals(myLiterals.direction_n)) {
+                    state.dispenser_access_direction = myLiterals.direction_e;
+                } else if (state.dispenser_access_direction.equals(myLiterals.direction_e) || state.dispenser_access_direction.equals(myLiterals.direction_w)) {
+                    state.dispenser_access_direction = myLiterals.direction_s;
+                }
+            }
+        }
+
+        // add observed things to memory
+        if (state.chosen_goal == null && !perception.goals.isEmpty()) {
+            Position goal_position = perception.goals.get(0);
+            goal_position.add(state.position);
+            state.chosen_goal = goal_position;
+        }
+        //TODO: remember dispensers found before the goal
+        if (state.chosen_goal != null) {
+            for (Position pos : perception.dispensers_0) {
+                pos.add(state.position);
+                if (state.closest_dispenser_0 == null) {
+                    state.closest_dispenser_0 = pos;
+                } else {
+                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_0);
+                    int new_distance = pos.distance(state.chosen_goal);
+                    if (new_distance < current_distance) {
+                        state.closest_dispenser_0 = pos;
+                    }
+                }
+            }
+
+            for (Position pos : perception.dispensers_1) {
+                pos.add(state.position);
+                if (state.closest_dispenser_1 == null) {
+                    state.closest_dispenser_1 = pos;
+                } else {
+                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_1);
+                    int new_distance = pos.distance(state.chosen_goal);
+                    if (new_distance < current_distance) {
+                        state.closest_dispenser_1 = pos;
+                    }
+                }
+            }
+        }
+
+        // update state
+        update_state(perception, state);
+
+        return true;
+    }
+
+    PerceptionResults parse_percepts(BeliefBase beliefBase, AgentState state) throws JasonException {
         var perception = new PerceptionResults();
-        for (Iterator<Literal> it = ts.getAg().getBB().getPercepts(); it.hasNext(); ) {
+        for (Iterator<Literal> it = beliefBase.getPercepts(); it.hasNext(); ) {
             Literal percept = it.next();
             switch (percept.getFunctor()) {
                 case "name" -> {
@@ -39,7 +105,7 @@ public class myPercept extends DefaultInternalAction {
                         // add it to the belief base
                         LiteralImpl name_literal = new LiteralImpl("agent_name");
                         name_literal.addTerm(new StringTermImpl(agent_name));
-                        ts.getAg().getBB().add(name_literal);
+                        beliefBase.add(name_literal);
                         // register with internal
                         state.agent_name = agent_name;
                         StateSingleton.getInstance().register_agent(agent_name, state);
@@ -82,8 +148,7 @@ public class myPercept extends DefaultInternalAction {
                         } else {
                             System.out.println("PANIC UNKNOWN DISPENSER TYPE");
                         }
-                    }
-                    else if(type.equals("block")) {
+                    } else if (type.equals("block")) {
                         perception.attached_block_position = entity_position;
                     }
                 }
@@ -98,65 +163,24 @@ public class myPercept extends DefaultInternalAction {
                     perception.last_action_arg = ((ListTermImpl) percept.getTerm(0)).get(0); // safe as all have only one parameter
                 }
                 case "step" -> {
-                    state.step = (int) ((NumberTermImpl) percept.getTerm(0)).solve();
+                    var current_step = (int) ((NumberTermImpl) percept.getTerm(0)).solve();
+                    if (current_step == state.step) {
+                        System.out.println("A SINGLE STEP GENERATED MULTIPLE PERCEPTS");
+                    }
+                    state.step = current_step;
                 }
 //                case "vision","energy","team","timestamp","disabled","score","steps","deadline","simStart","actionID","requestAction"->{}
                 default -> {
                 }
             }
         }
-        // update internal state based on last action
-        if (perception.last_action_success) {
-            // handle internal map updates
-            if (perception.last_action.equals(myLiterals.action_move)) {
-                Position move_dir = Position.from_direction(perception.last_action_arg);
-                if (move_dir == null) {
-                    System.out.println("PANIC MOVE INTO UNKNOWN DIRECTION");
-                    return false;
-                }
-                state.position.add(move_dir);
-            }
-        }
+        return perception;
+    }
 
-        // add observed things to memory
-        if (state.chosen_goal == null && !perception.goals.isEmpty()) {
-            Position goal_position = perception.goals.get(0);
-            goal_position.add(state.position);
-            state.chosen_goal = goal_position;
-        }
-
-        //TODO: remember dispensers found before the goal
-        if (state.chosen_goal != null) {
-            for (Position pos : perception.dispensers_0) {
-                pos.add(state.position);
-                if (state.closest_dispenser_0 == null) {
-                    state.closest_dispenser_0 = pos;
-                } else {
-                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_0);
-                    int new_distance = pos.distance(state.chosen_goal);
-                    if (new_distance < current_distance) {
-                        state.closest_dispenser_0 = pos;
-                    }
-                }
-            }
-
-            for (Position pos : perception.dispensers_1) {
-                pos.add(state.position);
-                if (state.closest_dispenser_1 == null) {
-                    state.closest_dispenser_1 = pos;
-                } else {
-                    int current_distance = state.chosen_goal.distance(state.closest_dispenser_1);
-                    int new_distance = pos.distance(state.chosen_goal);
-                    if (new_distance < current_distance) {
-                        state.closest_dispenser_1 = pos;
-                    }
-                }
-            }
-        }
-
-        // update state
+    void update_state(PerceptionResults perception, AgentState state) {
         switch (state.stateMachine) {
             case Lost -> {
+                // become idle if fully initialized
                 if (state.chosen_goal != null && state.closest_dispenser_0 != null && state.closest_dispenser_1 != null) {
                     state.stateMachine = StateMachine.Idle;
                     System.out.println("Bot " + state.agent_name + " fully initialized");
@@ -166,26 +190,28 @@ public class myPercept extends DefaultInternalAction {
                 //TODO: task selection logic
                 state.current_task = perception.available_tasks.get(0);
 
-                if(state.current_task.is_type_0){
-                    state.moveGoal = state.closest_dispenser_0.clone();
-                }
-                else {
-                    state.moveGoal = state.closest_dispenser_1.clone();
+                // get base dispenser position
+                if (state.current_task.is_type_0) {
+                    state.dispenser_access_position = state.closest_dispenser_0.clone();
+                } else {
+                    state.dispenser_access_position = state.closest_dispenser_1.clone();
                 }
 
-                if(state.position.y != state.moveGoal.y){
-                    if(state.position.x > state.moveGoal.x){
-                        state.moveGoal.add(1,0);
+                // offset as need to be next to dispenser not on top of it
+                if (state.position.y != state.dispenser_access_position.y) {
+                    if (state.position.x > state.dispenser_access_position.x) {
+                        state.dispenser_access_position.add(1, 0);
+                        state.dispenser_access_direction = myLiterals.direction_w;
+                    } else {
+                        state.dispenser_access_position.add(-1, 0);
+                        state.dispenser_access_direction = myLiterals.direction_e;
                     }
-                    else {
-                        state.moveGoal.add(-1,0);
-                    }
-                }
-                else if(state.position.x > state.moveGoal.x){
-                    state.moveGoal.add(0,1);
-                }
-                else{
-                    state.moveGoal.add(0,-1);
+                } else if (state.position.x > state.dispenser_access_position.x) {
+                    state.dispenser_access_position.add(0, 1);
+                    state.dispenser_access_direction = myLiterals.direction_n;
+                } else {
+                    state.dispenser_access_position.add(0, -1);
+                    state.dispenser_access_direction = myLiterals.direction_s;
                 }
 
                 state.stateMachine = StateMachine.Going_to_dispenser;
@@ -203,38 +229,35 @@ public class myPercept extends DefaultInternalAction {
 
             }
             case At_dispenser -> {
-                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_request)) {
+                if (perception.last_action_success && perception.last_action.equals(myLiterals.action_request)) {
                     state.stateMachine = StateMachine.About_to_attach;
                     System.out.println("Bot " + state.agent_name + " got block");
                 }
             }
             case About_to_attach -> {
-                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_attach)) {
+                if (perception.last_action_success && perception.last_action.equals(myLiterals.action_attach)) {
                     state.stateMachine = StateMachine.Going_to_goal;
                     System.out.println("Bot " + state.agent_name + " attached to block");
                 }
             }
             case Going_to_goal -> {
-                if(state.position.equals(state.chosen_goal)){
+                if (state.position.equals(state.chosen_goal)) {
                     System.out.println("Bot " + state.agent_name + " at goal");
                     state.stateMachine = StateMachine.Rotating;
                 }
             }
             case Rotating -> {
-                if(perception.attached_block_position.x == 0 && perception.attached_block_position.y ==  1){
+                if (perception.attached_block_position.x == 0 && perception.attached_block_position.y == 1) {
                     System.out.println("Bot " + state.agent_name + " fully rotated");
                     state.stateMachine = StateMachine.Submit;
                 }
             }
             case Submit -> {
-                if(perception.last_action_success && perception.last_action.equals(myLiterals.action_submit)) {
+                if (perception.last_action_success && perception.last_action.equals(myLiterals.action_submit)) {
                     System.out.println("Bot " + state.agent_name + "submitted task");
                     state.stateMachine = StateMachine.Idle;
                 }
             }
         }
-
-
-        return true;
     }
 }

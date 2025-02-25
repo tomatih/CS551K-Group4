@@ -10,6 +10,7 @@ import jason.asSyntax.*;
 public class myAi extends DefaultInternalAction {
 
     private static InternalAction singleton = null;
+
     public static InternalAction create() {
         if (singleton == null)
             singleton = new myAi();

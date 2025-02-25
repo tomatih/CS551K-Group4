@@ -12,18 +12,18 @@ public class Position implements Cloneable {
         this.y = y;
     }
 
-    public void add(Position other){
+    public void add(Position other) {
         x += other.x;
         y += other.y;
     }
 
-    public void add(int x, int y ){
+    public void add(int x, int y) {
         this.x += x;
         this.y += y;
     }
 
     //TODO: fix delta 1 on corners
-    public int distance(Position other){
+    public int distance(Position other) {
         return Math.abs(x - other.x) + Math.abs(y - other.y);
     }
 
@@ -32,27 +32,23 @@ public class Position implements Cloneable {
         return "(" + x + ", " + y + ")";
     }
 
-    static public Position from_direction(Term direction){
-        if(direction.equals(myLiterals.direction_n)){
-            return new Position(0,-1);
-        }
-        else if(direction.equals(myLiterals.direction_s)){
-            return new Position(0,1);
-        }
-        else if(direction.equals(myLiterals.direction_w)){
-            return new Position(-1,0);
-        }
-        else if(direction.equals(myLiterals.direction_e)){
-            return new Position(1,0);
-        }
-        else {
+    static public Position from_direction(Term direction) {
+        if (direction.equals(myLiterals.direction_n)) {
+            return new Position(0, -1);
+        } else if (direction.equals(myLiterals.direction_s)) {
+            return new Position(0, 1);
+        } else if (direction.equals(myLiterals.direction_w)) {
+            return new Position(-1, 0);
+        } else if (direction.equals(myLiterals.direction_e)) {
+            return new Position(1, 0);
+        } else {
             return null;
         }
     }
 
-    static public Position from_terms(Term x, Term y){
-        int pos_x = (int)((NumberTermImpl)x).solve();
-        int pos_y = (int)((NumberTermImpl)y).solve();
+    static public Position from_terms(Term x, Term y) {
+        int pos_x = (int) ((NumberTermImpl) x).solve();
+        int pos_y = (int) ((NumberTermImpl) y).solve();
         return new Position(pos_x, pos_y);
     }
 
@@ -69,11 +65,10 @@ public class Position implements Cloneable {
 
     @Override
     public boolean equals(Object other) {
-        if(other instanceof Position){
+        if (other instanceof Position) {
             Position p = (Position) other;
             return p.x == x && p.y == y;
-        }
-        else {
+        } else {
             return false;
         }
     }

@@ -45,155 +45,93 @@ public class myAction extends DefaultInternalAction {
         //TODO: remove all panics
         switch (state.stateMachine) {
             case Lost -> {
-                // move randomly to explore
-                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
-                LiteralImpl direction = null;
-                switch (rand.nextInt(4)) {
-                    case 0 -> {
-                        direction = myLiterals.direction_n;
-                    }
-                    case 1 -> {
-                        direction = myLiterals.direction_s;
-                    }
-                    case 2 -> {
-                        direction = myLiterals.direction_w;
-                    }
-                    case 3 -> {
-                        direction = myLiterals.direction_e;
-                    }
-                }
-                base_literal.addTerm(direction);
-                return un.unifies(args[0], base_literal);
+                return un.unifies(args[0], get_explore_direction());
             }
             case Idle -> {
                 return un.unifies(args[0], myLiterals.choice_skip);
             }
             case Going_to_dispenser -> {
-                // first align vertical
-                LiteralImpl direction = null;
-                if(state.position.y != state.moveGoal.y ){
-                    if(state.moveGoal.y > state.position.y){
-                        direction = myLiterals.direction_s;
-                    }
-                    else {
-                        direction = myLiterals.direction_n;
-                    }
-                }
-                // then align horizontal
-                else if(state.position.x != state.moveGoal.x) {
-                    if(state.moveGoal.x > state.position.x){
-                        direction = myLiterals.direction_e;
-                    }
-                    else {
-                        direction = myLiterals.direction_w;
-                    }
-                }
-                // onm top but for some reason sensing hasn't activated yet
-                else {
-                    return un.unifies(args[0], myLiterals.choice_skip);
-                }
-                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
-                base_literal.addTerm(direction);
-                return un.unifies(args[0], base_literal);
+                return un.unifies(args[0], get_move_direction(state.position, state.dispenser_access_position));
             }
             case At_dispenser -> {
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_request.copy();
-                LiteralImpl direction = null;
-                Position dispenser = null;
-                if(state.current_task.is_type_0){
-                    dispenser = state.closest_dispenser_0;
-                }
-                else {
-                    dispenser = state.closest_dispenser_1;
-                }
-                if(dispenser.y > state.position.y){
-                    direction = myLiterals.direction_s;
-                }
-                else if(dispenser.y < state.position.y){
-                    direction = myLiterals.direction_n;
-                }
-                else if(dispenser.x > state.position.x){
-                    direction = myLiterals.direction_e;
-                } else if (dispenser.x < state.position.x) {
-                    direction = myLiterals.direction_w;
-                }
-                else {
-                    System.out.println("PANIC TOO CLOSE TO A DISPENSER");
-                    return false;
-                }
-                base_literal.addTerm(direction);
+                base_literal.addTerm(state.dispenser_access_direction);
                 return un.unifies(args[0], base_literal);
             }
             case About_to_attach -> {
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_attach.copy();
-                LiteralImpl direction = null;
-                Position dispenser = null;
-                if(state.current_task.is_type_0){
-                    dispenser = state.closest_dispenser_0;
-                }
-                else {
-                    dispenser = state.closest_dispenser_1;
-                }
-                if(dispenser.y > state.position.y){
-                    direction = myLiterals.direction_s;
-                }
-                else if(dispenser.y < state.position.y){
-                    direction = myLiterals.direction_n;
-                }
-                else if(dispenser.x > state.position.x){
-                    direction = myLiterals.direction_e;
-                } else if (dispenser.x < state.position.x) {
-                    direction = myLiterals.direction_w;
-                }
-                else {
-                    System.out.println("PANIC ON TOP OF DISPENSER");
-                    return false;
-                }
-                base_literal.addTerm(direction);
+                base_literal.addTerm(state.dispenser_access_direction);
                 return un.unifies(args[0], base_literal);
             }
             case Going_to_goal -> {
-                Position goal = state.chosen_goal;
-
-                // first align vertical
-                LiteralImpl direction = null;
-                if(state.position.y != goal.y ){
-                    if(goal.y > state.position.y){
-                        direction = myLiterals.direction_s;
-                    }
-                    else {
-                        direction = myLiterals.direction_n;
-                    }
-                }
-                else if(state.position.x != goal.x) {
-                    if(goal.x > state.position.x){
-                        direction = myLiterals.direction_e;
-                    }
-                    else {
-                        direction = myLiterals.direction_w;
-                    }
-                }
-                else {
-                    return un.unifies(args[0], myLiterals.choice_skip);
-                }
-                LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
-                base_literal.addTerm(direction);
-                return un.unifies(args[0], base_literal);
+                return un.unifies(args[0], get_move_direction(state.position, state.chosen_goal));
             }
             case Rotating -> {
                 //TODO: make more efficient rotation
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_rotate.copy();
-                base_literal.addTerm(myLiterals.direction_clockwise);
+                if (state.dispenser_access_direction.equals(myLiterals.direction_w)) {
+                    base_literal.addTerm(myLiterals.direction_counterclockwise);
+                } else {
+                    base_literal.addTerm(myLiterals.direction_clockwise);
+                }
                 return un.unifies(args[0], base_literal);
             }
             case Submit -> {
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_submit.copy();
                 base_literal.addTerm(new StringTermImpl(state.current_task.id));
-                System.out.println("Bot "+state.agent_name+" attempting to submit "+state.current_task.id);
+                System.out.println("Bot " + state.agent_name + " attempting to submit " + state.current_task.id);
                 return un.unifies(args[0], base_literal);
             }
         }
 
         return true;
+    }
+
+    LiteralImpl get_move_direction(Position position, Position goal) {
+        // first align vertical
+        LiteralImpl direction = null;
+        if (position.y != goal.y) {
+            if (goal.y > position.y) {
+                direction = myLiterals.direction_s;
+            } else {
+                direction = myLiterals.direction_n;
+            }
+        }
+        // then align horizontal
+        else if (position.x != goal.x) {
+            if (goal.x > position.x) {
+                direction = myLiterals.direction_e;
+            } else {
+                direction = myLiterals.direction_w;
+            }
+        }
+        // onm top but for some reason sensing hasn't activated yet
+        else {
+            return myLiterals.choice_skip;
+        }
+        LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
+        base_literal.addTerm(direction);
+        return base_literal;
+    }
+
+    LiteralImpl get_explore_direction() {
+        LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_move.copy();
+        LiteralImpl direction = null;
+        switch (rand.nextInt(4)) {
+            case 0 -> {
+                direction = myLiterals.direction_n;
+            }
+            case 1 -> {
+                direction = myLiterals.direction_s;
+            }
+            case 2 -> {
+                direction = myLiterals.direction_w;
+            }
+            case 3 -> {
+                direction = myLiterals.direction_e;
+            }
+        }
+        base_literal.addTerm(direction);
+        return base_literal;
     }
 }

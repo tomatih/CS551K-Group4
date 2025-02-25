@@ -22,13 +22,13 @@ public class StateSingleton {
         states.put(agent_name, state);
     }
 
-    public AgentState get_agent_state(Agent agent){
-        var name_candidates = agent.getBB().getCandidateBeliefs(new PredicateIndicator("agent_name",1));
-        if(name_candidates == null || !name_candidates.hasNext()){
+    public AgentState get_agent_state(Agent agent) {
+        var name_candidates = agent.getBB().getCandidateBeliefs(new PredicateIndicator("agent_name", 1));
+        if (name_candidates == null || !name_candidates.hasNext()) {
             return new AgentState();
         }
 
-        var name = ((StringTermImpl)name_candidates.next().getTerm(0)).getString();
+        var name = ((StringTermImpl) name_candidates.next().getTerm(0)).getString();
         return states.get(name);
     }
 }
