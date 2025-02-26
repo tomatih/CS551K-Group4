@@ -243,7 +243,12 @@ public class myPercept extends DefaultInternalAction {
             case Going_to_goal -> {
                 if (state.position.equals(state.chosen_goal)) {
                     System.out.println("Bot " + state.agent_name + " at goal");
-                    state.stateMachine = StateMachine.Rotating;
+                    if(state.dispenser_access_direction.equals(myLiterals.direction_s)){
+                        state.stateMachine = StateMachine.Submit;
+                    }
+                    else{
+                        state.stateMachine = StateMachine.Rotating;
+                    }
                 }
             }
             case Rotating -> {
