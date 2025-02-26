@@ -14,4 +14,4 @@ TODO:
   - [ ] 2 positions + obstacle map and a direction out for Voldy
   - [ ] Calum should make his own state machine that can be then acted on within my lost state
   - [ ] Up to the other 2 how they want to implement that
-- [ ] 
+- [ ] Request failures on dispensers? IS it another symptom of off by 1?

@@ -50,11 +50,14 @@ public class myPercept extends DefaultInternalAction {
                     state.dispenser_access_direction = myLiterals.direction_s;
                 }
             }
-        }
-        else{
-            if(perception.last_action.equals(myLiterals.action_submit) && perception.last_action_result.equals(myLiterals.failure_target)){
+        } else {
+            if (perception.last_action.equals(myLiterals.action_submit) && perception.last_action_result.equals(myLiterals.failure_target)) {
                 // need to switch tasks
-                state.current_task = perception.available_tasks.stream().filter( t -> t.is_type_0 == state.current_task.is_type_0 && !t.id.equals(state.current_task.id) ).findFirst().get();
+                perception.available_tasks
+                        .stream()
+                        .filter(t -> t.is_type_0 == state.current_task.is_type_0 && !t.id.equals(state.current_task.id))
+                        .findFirst()
+                        .ifPresent(task -> state.current_task = task);
             }
         }
 
@@ -195,6 +198,11 @@ public class myPercept extends DefaultInternalAction {
             }
             case Idle -> {
                 //TODO: task selection logic
+
+                // no tasks to pick up
+                if (perception.available_tasks.isEmpty()) {
+                    return;
+                }
                 state.current_task = perception.available_tasks.get(0);
 
                 // get base dispenser position
@@ -204,22 +212,9 @@ public class myPercept extends DefaultInternalAction {
                     state.dispenser_access_position = state.closest_dispenser_1.clone();
                 }
 
-                // offset as need to be next to dispenser not on top of it
-                if (state.position.y != state.dispenser_access_position.y) {
-                    if (state.position.x > state.dispenser_access_position.x) {
-                        state.dispenser_access_position.add(1, 0);
-                        state.dispenser_access_direction = myLiterals.direction_w;
-                    } else {
-                        state.dispenser_access_position.add(-1, 0);
-                        state.dispenser_access_direction = myLiterals.direction_e;
-                    }
-                } else if (state.position.x > state.dispenser_access_position.x) {
-                    state.dispenser_access_position.add(0, 1);
-                    state.dispenser_access_direction = myLiterals.direction_n;
-                } else {
-                    state.dispenser_access_position.add(0, -1);
-                    state.dispenser_access_direction = myLiterals.direction_s;
-                }
+                // offset as need to be next to dispenser not on top of it (accessing from the top to minimize rotation)
+                state.dispenser_access_position.add(0, -1);
+                state.dispenser_access_direction = myLiterals.direction_s;
 
                 state.stateMachine = StateMachine.Going_to_dispenser;
                 System.out.println("Bot " + state.agent_name + " picked task " + state.current_task.id);
@@ -250,10 +245,9 @@ public class myPercept extends DefaultInternalAction {
             case Going_to_goal -> {
                 if (state.position.equals(state.chosen_goal)) {
                     System.out.println("Bot " + state.agent_name + " at goal");
-                    if(state.dispenser_access_direction.equals(myLiterals.direction_s)){
+                    if (state.dispenser_access_direction.equals(myLiterals.direction_s)) {
                         state.stateMachine = StateMachine.Submit;
-                    }
-                    else{
+                    } else {
                         state.stateMachine = StateMachine.Rotating;
                     }
                 }
