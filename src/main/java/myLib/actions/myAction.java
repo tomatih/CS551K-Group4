@@ -67,7 +67,7 @@ public class myAction extends DefaultInternalAction {
                 return un.unifies(args[0], get_move_direction(state.position, state.chosen_goal));
             }
             case Rotating -> {
-                //TODO: make more efficient rotation
+                // Fun fact rotation isn't blocked by terrain so this is all that is necessary
                 LiteralImpl base_literal = (LiteralImpl) myLiterals.choice_rotate.copy();
                 if (state.dispenser_access_direction.equals(myLiterals.direction_w)) {
                     base_literal.addTerm(myLiterals.direction_counterclockwise);
