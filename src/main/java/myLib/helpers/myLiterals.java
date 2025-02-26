@@ -32,4 +32,6 @@ public class myLiterals {
 
     static final public LiteralImpl block_type_0 = new LiteralImpl("b0");
     static final public LiteralImpl block_type_1 = new LiteralImpl("b1");
+
+    static final public LiteralImpl failure_target = new LiteralImpl("failed_target");
 }

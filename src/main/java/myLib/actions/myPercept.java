@@ -51,6 +51,12 @@ public class myPercept extends DefaultInternalAction {
                 }
             }
         }
+        else{
+            if(perception.last_action.equals(myLiterals.action_submit) && perception.last_action_result.equals(myLiterals.failure_target)){
+                // need to switch tasks
+                state.current_task = perception.available_tasks.stream().filter( t -> t.is_type_0 == state.current_task.is_type_0 && !t.id.equals(state.current_task.id) ).findFirst().get();
+            }
+        }
 
         // add observed things to memory
         if (state.chosen_goal == null && !perception.goals.isEmpty()) {
@@ -155,6 +161,7 @@ public class myPercept extends DefaultInternalAction {
                 case "lastActionResult" -> {
                     LiteralImpl success_literal = new LiteralImpl("success");
                     perception.last_action_success = percept.getTerm(0).equals(success_literal);
+                    perception.last_action_result = percept.getTerm(0);
                 }
                 case "lastAction" -> {
                     perception.last_action = percept.getTerm(0);
