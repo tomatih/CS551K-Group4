@@ -62,6 +62,11 @@ public class myPercept extends DefaultInternalAction {
         }
 
         // add observed things to memory
+        for(var pos : perception.terrain){
+            pos.add(state.position);
+            state.map.add(pos);
+        }
+        System.out.println("Agent "+state.agent_name+" map: "+state.map);
         if (state.chosen_goal == null && !perception.goals.isEmpty()) {
             Position goal_position = perception.goals.get(0);
             goal_position.add(state.position);
@@ -71,6 +76,10 @@ public class myPercept extends DefaultInternalAction {
         if (state.chosen_goal != null) {
             for (Position pos : perception.dispensers_0) {
                 pos.add(state.position);
+                // skip blocked dispensers
+                if(state.map.contains(pos)){
+                    continue;
+                }
                 if (state.closest_dispenser_0 == null) {
                     state.closest_dispenser_0 = pos;
                 } else {
@@ -84,6 +93,10 @@ public class myPercept extends DefaultInternalAction {
 
             for (Position pos : perception.dispensers_1) {
                 pos.add(state.position);
+                // skip blocked dispensers
+                if(state.map.contains(pos)){
+                    continue;
+                }
                 if (state.closest_dispenser_1 == null) {
                     state.closest_dispenser_1 = pos;
                 } else {
@@ -140,7 +153,8 @@ public class myPercept extends DefaultInternalAction {
                     perception.goals.add(goal_position);
                 }
                 case "obstacle" -> {
-                    //TODO: handle obstacles
+                    var obstacle_position = Position.from_terms(percept.getTerm(0), percept.getTerm(1));
+                    perception.terrain.add(obstacle_position);
                 }
                 case "thing" -> {
                     // get local coordinates
