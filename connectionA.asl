@@ -48,7 +48,17 @@ my_position(0,0).
 +!updateStateMachine : state_machine(toDispenser) & my_position(Mx,My) & current_task(_,Bt) & Cy = My+1 & dispenser(Bt,Mx,Cy) <- -state_machine(toDispenser); +state_machine(atDispenser); .print("At dispenser").
 +!updateStateMachine : state_machine(toDispenser) <- true. // don't panic still on my way
 
-+!updateStateMachine : state_machine(atDispenser) <- true.
++!updateStateMachine : state_machine(atDispenser) & lastActionResult(success) & lastAction(request) <- -state_machine(atDispenser); +state_machine(aboutToAttach); .print("Block requested").
++!updateStateMachine : state_machine(atDispenser) <- true. // don't panic still waiting on block (should never trigger unless blocked)
+
++!updateStateMachine : state_machine(aboutToAttach) & lastActionResult(success) & lastAction(attach) <- -state_machine(aboutToAttach); +state_machine(toGoal); .print("Block attached").
++!updateStateMachine : state_machine(aboutToAttach) <- true. // don't panic still waiting attachment (should never trigger unless blocked)
+
++!updateStateMachine : state_machine(toGoal) & my_position(Mx,My) & chosen_goal(Mx,My) <- -state_machine(toGoal); +state_machine(shouldSubmit);.print("At goal").
++!updateStateMachine : state_machine(toGoal) <- true. // don't panic still on my way
+
++!updateStateMachine : state_machine(shouldSubmit) & lastActionResult(success) & lastAction(submit) <- -current_task(_,_) ;-state_machine(shouldSubmit); +state_machine(idle); .print("Task submitted").
++!updateStateMachine : state_machine(shouldSubmit) <- true. // don't panic still submitting (shouldn't trigger unless task duplicate)
 
 /* Action emitting plans */
 // Exploring logic
@@ -59,6 +69,12 @@ my_position(0,0).
 +!decideAction : state_machine(toDispenser) & my_position(Mx,My) & current_task(_,Bt) & dispenser(Bt,Dx,Dy) & Cy = Dy-1 & navigate(Mx,My,Dx,Cy,Dir)  <- move(Dir). // No tasks found there is nothing to do
 
 +!decideAction : state_machine(atDispenser) <- request(s).
+
++!decideAction : state_machine(aboutToAttach) <- attach(s).
+
++!decideAction : state_machine(toGoal) & my_position(Mx,My) & chosen_goal(Gx,Gy) & navigate(Mx,My,Gx,Gy,Dir) <- move(Dir).
+
++!decideAction : state_machine(shouldSubmit) & current_task(TaskId,_) <- submit(TaskId).
 
 +!decideAction : true <- true.
 
