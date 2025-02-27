@@ -3,6 +3,10 @@ random_dir(DirList,RandomNumber,Dir) :- (RandomNumber <= 0.25 & .nth(0,DirList,D
 
 navigate(Ox,Oy,Dx,Dy,Dir) :- ( not Oy = Dy & ( (Oy<Dy & Dir = s ) | Dir=n ) ) | ( (Ox < Dx & Dir = e) | Dir = w ).
 
+abs(In,Out) :- (In<0 & Out=-In) | Out = In.
+delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
+distance(Ax,Ay,Bx,By,Dist) :- delta(Ax,Bx,Dx) & delta(Ay,By,Dy) & Dist = Dx+Dy.
+
 state_machine(lost).
 my_position(0,0).
 
@@ -23,7 +27,8 @@ my_position(0,0).
     !update_position;
     !get_goal;
     !get_dispenser(b0);
-    !get_dispenser(b1).
+    !get_dispenser(b1);
+    !fix_task.
 
 +!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([n]) & my_position(X,Oy) <- Ny=Oy-1; -my_position(X,Oy); +my_position(X,Ny).
 +!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([s]) & my_position(X,Oy) <- Ny=Oy+1; -my_position(X,Oy); +my_position(X,Ny).
@@ -35,7 +40,11 @@ my_position(0,0).
 +!get_goal : true <- true. // don't panic if a goal exist or no goal seen
 
 +!get_dispenser(BlockType) : not dispenser(BlockType,_,_) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) <- X=Rx+Mx; Y=Ry+My; +dispenser(BlockType,X,Y).
++!get_dispenser(BlockType) : dispenser(BlockType,OldX,OldY) & chosen_goal(GoalX,GoalY) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & NewX=Rx+Mx & NewY=Ry+My & distance(OldX,OldY,GoalX,GoalY,OldDistance) & distance(NewX,NewY,GoalX,GoalY,NewDistance) & NewDistance < OldDistance <- -dispenser(BlockType,OldX,OldY); +dispenser(BlockType,NewX,NewY).
 +!get_dispenser(_) : true <- true. // don't panic if no dispensers found
+
++!fix_task : current_task(TaskId, BlockType) & not task(TaskId,_,_,_) & task(NewTaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step <- -current_task(TaskId, BlockType); +current_task(NewTaskId, BlockType).
++!fix_task : true <- true. // don't panic nothing to fix.
 
 /* State Machine plans */
 +!updateStateMachine : state_machine(lost) & chosen_goal(_,_) & dispenser(b0, _,_) & dispenser(b1,_,_) <- -state_machine(lost); +state_machine(idle); .print("Fully initialized"). // become idle if all required fields are in the belief base
