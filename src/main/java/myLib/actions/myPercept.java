@@ -66,7 +66,6 @@ public class myPercept extends DefaultInternalAction {
             pos.add(state.position);
             state.map.add(pos);
         }
-        System.out.println("Agent "+state.agent_name+" map: "+state.map);
         if (state.chosen_goal == null && !perception.goals.isEmpty()) {
             Position goal_position = perception.goals.get(0);
             goal_position.add(state.position);

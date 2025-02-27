@@ -15,4 +15,4 @@ TODO:
   - [ ] Calum should make his own state machine that can be then acted on within my lost state
   - [ ] Up to the other 2 how they want to implement that
 - [ ] Request failures on dispensers? IS it another symptom of off by 1?
-- [ ] If a dispenser spawns on top of terrain it is unusable. filter those out from list
+- [ ] Add walls to map (just lien of blocks -100/+100)
