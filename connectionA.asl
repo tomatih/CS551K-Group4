@@ -8,12 +8,13 @@ my_position(0,0).
 // only children of this plan are allowed to emit actions
 @step[atomic]
 +step(S) <-
-    //.print("Step: ",S);
+    //.print("Step: ",S," start");
     //myLib.parsePercepts(Percepts);
     //myLib.updateBeliefBase(Percepts);
     !updateBeliefs;
     !updateStateMachine;
     !decideAction.
+    //.print("Step: ",S," end").
 
 /* Belief base plans */
 +!updateBeliefs : my_position(X,Y) <-
@@ -39,13 +40,14 @@ my_position(0,0).
 +!updateStateMachine : state_machine(lost) <- true. // stay lost
 
 
-//+!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10, ) && step(Step) && Deadline < Step <- +current_task(TaskID,
++!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step <- +current_task(TaskId,BlockType); -state_machine(idle); +state_machine(toDispenser); .print("Picked task: ",TaskId).
 +!updateStateMachine : state_machine(idle) <- true. // can't find any tasks
 
 /* Action emitting plans */
 // Exploring logic
 +!decideAction : state_machine(lost) & .random(RandomNumber) & random_dir([n,s,e,w],RandomNumber,Dir) <- move(Dir).
 
++!decideAction : state_machine(idle) <- skip. // No tasks found there is nothing to do
 
 +!decideAction : true <- true.
 
