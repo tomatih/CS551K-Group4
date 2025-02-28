@@ -1,55 +1,177 @@
-// connectionA.asl
+/* 
+ * Enhanced agent for CS551K-Contest
+ * Capabilities: navigation, block detection, carrying, goal finding, task completion
+ */
 
-/* Beliefs */
+/* Initial Beliefs */
 random_dir(n).
 random_dir(s).
 random_dir(e).
 random_dir(w).
 
-+my_position(0, 0).  // Example initial position
-+percept(block(1, 1)).  // Example block position
-+percept(goal(2, 2)).  // Example goal position
-+percept(obstacle(3, 3)).  // Example obstacle position
-+carrying(none).  // Example: Agent is not carrying anything
+// A* pathfinding beliefs ,Trying to implement A* graph path finding algo
+at(0, 0, 0). // (x, y, cost)
+visited([]).
 
-/* Initial goal */
+// Team coordination
+free_agent.
+
+/* Initial Goals */
 !start.
 
 /* Plans */
-+!start <- 
-    .print("Agent started. Waiting for perceptions...").
++!start : true <- 
+    .print("Agent started and ready for operation.");
+    !find_tasks.
 
-+step(_) <- 
-    .print("Received step percept.");
-    !decide_movement.
+/* Task Management */
++!find_tasks : true <- 
+    ?my_name(Name);
+    .print(Name, " looking for available tasks");
+    !scan_environment.
 
-/* Decision Making */
-+!decide_movement : percept(block(X,Y)) & carrying(none)  // If there's a block nearby and not carrying
-    <- !move_towards(X,Y).
++!scan_environment : true <-
+    .findall(block(X,Y,Type), percept(block(X,Y,Type)), Blocks);
+    .findall(task(Id,Deadline,Reward,Reqs), task(Id,Deadline,Reward,Reqs), Tasks);
+    .print("Environment scan: ", Blocks.length, " blocks, ", Tasks.length, " tasks");
+    !prioritize_tasks(Tasks).
 
-+!decide_movement : carrying(_) & percept(goal(X,Y))  // If carrying a block and sees the goal
-    <- !move_towards(X,Y).
++!prioritize_tasks([]) : true <-
+    .print("No tasks available, exploring environment");
+    !explore.
 
-+!decide_movement : percept(obstacle(_,_))  // Avoid obstacles
-    <- !move_random.
++!prioritize_tasks(Tasks) : true <-
+    // Sort tasks by reward/deadline ratio
+    .sort(Tasks, SortedTasks);
+    .nth(0, SortedTasks, BestTask);
+    BestTask = task(Id,Deadline,Reward,_);
+    .print("Selected task: ", Id, " with reward ", Reward, " and deadline ", Deadline);
+    !work_on_task(BestTask).
 
-+!decide_movement : true  // No useful perception, move randomly
-    <- !move_random.
++!work_on_task(task(Id,_,_,Requirements)) : true <-
+    .print("Working on task ", Id, " with requirements ", Requirements);
+    !gather_blocks(Requirements).
 
-/* Move Towards Target */
-+!move_towards(X, Y) <- 
-    .print("Moving towards (", X, ", ", Y, ")");
-    my_position(MyX, MyY);
-    if (MyX < X) then { move(e) };
-    if (MyX > X) then { move(w) };
-    if (MyY < Y) then { move(n) };
-    if (MyY > Y) then { move(s) }.
+/* Block Gathering */
++!gather_blocks([]) : true <-
+    .print("All required blocks gathered");
+    !deliver_task.
 
-/* Random movement */
-+!move_random <- 
-    .print("Moving randomly.");
++!gather_blocks([req(Type,X,Y)|Rest]) : true <-
+    .print("Looking for block of type ", Type);
+    !find_block(Type).
+
++!find_block(Type) : percept(block(X,Y,Type)) & my_position(MyX,MyY) & not carrying(_) <-
+    .print("Found block of type ", Type, " at position (", X, ", ", Y, ")");
+    !calculate_path(MyX, MyY, X, Y);
+    !move_to(X, Y);
+    !attach_block.
+
++!find_block(Type) : true <-
+    .print("No visible block of type ", Type, ", exploring");
+    !explore.
+
++!attach_block : my_position(X,Y) & percept(block(X,Y,_)) <-
+    .print("Attaching block at position (", X, ", ", Y, ")");
+    attach;
+    !find_tasks.
+
++!attach_block : true <-
+    .print("No block at current position to attach");
+    !explore.
+
+/* Movement and Navigation */
++!move_to(X, Y) : my_position(X, Y) <-
+    .print("Already at destination (", X, ", ", Y, ")").
+
++!move_to(X, Y) : my_position(MyX, MyY) <-
+    // Determine best direction
+    if (MyX < X) {
+        Dir = e;
+    } else {
+        if (MyX > X) {
+            Dir = w;
+        } else {
+            if (MyY < Y) {
+                Dir = n;
+            } else {
+                Dir = s;
+            }
+        }
+    }
+    .print("Moving ", Dir, " towards (", X, ", ", Y, ")");
+    move(Dir);
+    !move_to(X, Y).
+
++!calculate_path(StartX, StartY, EndX, EndY) : true <-
+    .print("Calculating path from (", StartX, ", ", StartY, ") to (", EndX, ", ", EndY, ")");
+    // A* pathfinding would be implemented here
+    // For now we'll use simple direct path.
+
+/* Exploration */
++!explore : true <-
+    .print("Exploring environment");
+    !move_random.
+
++!move_random : true <-
     .random(R);
-    if (R < 0.25) then { move(n) };
-    if (R < 0.5) then { move(s) };
-    if (R < 0.75) then { move(e) };
-    move(w).
+    if (R < 0.25) {
+        move(n);
+    } else {
+        if (R < 0.5) {
+            move(s);
+        } else {
+            if (R < 0.75) {
+                move(e);
+            } else {
+                move(w);
+            }
+        }
+    }
+    .print("Moving randomly");
+    !scan_environment.
+
+/* Task Delivery */
++!deliver_task : carrying(_) & percept(goal(X,Y)) <-
+    .print("Goal found at (", X, ", ", Y, "), delivering task");
+    !move_to(X, Y);
+    submit;
+    .print("Task submitted successfully!");
+    !find_tasks.
+
++!deliver_task : carrying(_) <-
+    .print("Carrying block but goal not found, searching for goal");
+    !explore.
+
++!deliver_task : true <-
+    .print("Not carrying any block, cannot deliver");
+    !find_tasks.
+
+/* Perception Handlers */
++step(S) : true <-
+    .print("Step ", S);
+    !scan_environment.
+
++my_position(X, Y) : true <-
+    .print("Position updated to (", X, ", ", Y, ")").
+
++carrying(Block) : Block \== none <-
+    .print("Now carrying block: ", Block);
+    !deliver_task.
+
++carrying(none) : true <-
+    .print("Not carrying any block");
+    !find_tasks.
+
+/* Error Handling */
+-!find_tasks : true <-
+    .print("Error in find_tasks, retrying");
+    !explore.
+
+-!gather_blocks(_) : true <-
+    .print("Error in gather_blocks, retrying");
+    !explore.
+
+-!deliver_task : true <-
+    .print("Error in deliver_task, retrying");
+    !explore.
