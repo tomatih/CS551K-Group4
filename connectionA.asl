@@ -9,9 +9,11 @@ random_dir(s).
 random_dir(e).
 random_dir(w).
 
-// A* pathfinding beliefs ,Trying to implement A* graph path finding algo
-at(0, 0, 0). // (x, y, cost)
-visited([]).
+// A* pathfinding beliefs
+path([]).      // Current path being followed
+obstacle(X,Y) :- thing(X,Y,obstacle,_).  // Define obstacles
+open_list([]).   // A* open list
+closed_list([]). // A* closed list
 
 // Team coordination 
 //free_agent.
@@ -63,8 +65,7 @@ visited([]).
 
 +!find_block(Type) : percept(block(X,Y,Type)) & my_position(MyX,MyY) & not carrying(_) <-
     .print("Found block of type ", Type, " at position (", X, ", ", Y, ")");
-    !calculate_path(MyX, MyY, X, Y);
-    !move_to(X, Y);
+    !navigate_to(X, Y);
     !attach_block.
 
 +!find_block(Type) : true <-
@@ -80,33 +81,192 @@ visited([]).
     .print("No block at current position to attach");
     !explore.
 
-/* Movement and Navigation */
-+!move_to(X, Y) : my_position(X, Y) <-
-    .print("Already at destination (", X, ", ", Y, ")").
+/* A* Pathfinding Implementation */
 
-+!move_to(X, Y) : my_position(MyX, MyY) <-
-    // Determine best direction
-    if (MyX < X) {
+// Start A* path calculation
++!calculate_path(StartX, StartY, GoalX, GoalY) : true <-
+    .print("Calculating A* path from (", StartX, ", ", StartY, ") to (", GoalX, ", ", GoalY, ")");
+    -+open_list([]);
+    -+closed_list([]);
+    
+    // Calculate heuristic for start node
+    H = math.abs(GoalX - StartX) + math.abs(GoalY - StartY);
+    
+    // Add start node to open list: [X, Y, G, H, F, ParentX, ParentY]
+    // G is cost from start, H is heuristic to goal, F = G + H
+    -+open_list([[StartX, StartY, 0, H, H, -1, -1]]);
+    
+    !astar_loop(GoalX, GoalY).
+
+// Main A* loop
++!astar_loop(GoalX, GoalY) : open_list([]) <-
+    .print("No path found to goal (", GoalX, ", ", GoalY, ")");
+    -+path([]);  // Clear path
+    !explore.    // Fall back to exploration
+
+// Path found - reconstruct and store
++!astar_loop(GoalX, GoalY) : open_list([Current|_]) & Current = [GoalX, GoalY, _, _, _, _, _] <-
+    .print("Path found to goal (", GoalX, ", ", GoalY, ")");
+    !reconstruct_path(GoalX, GoalY).
+
+// Continue A* search
++!astar_loop(GoalX, GoalY) : open_list(OpenList) & closed_list(ClosedList) <-
+    // Sort open list by F value (lowest first)
+    .sort(OpenList, SortedOpen, f_compare);
+    
+    // Get lowest F cost node
+    .nth(0, SortedOpen, [CurrentX, CurrentY, G, H, F, ParentX, ParentY]);
+    
+    // Remove current from open list and add to closed list
+    .delete(OpenList, [CurrentX, CurrentY, G, H, F, ParentX, ParentY], NewOpenList);
+    -+open_list(NewOpenList);
+    
+    // Add to closed list
+    +closed_list([[CurrentX, CurrentY, G, H, F, ParentX, ParentY]|ClosedList]);
+    
+    // Generate successors in four directions (n, s, e, w)
+    !generate_successor(CurrentX, CurrentY+1, CurrentX, CurrentY, G, GoalX, GoalY); // North
+    !generate_successor(CurrentX, CurrentY-1, CurrentX, CurrentY, G, GoalX, GoalY); // South
+    !generate_successor(CurrentX+1, CurrentY, CurrentX, CurrentY, G, GoalX, GoalY); // East
+    !generate_successor(CurrentX-1, CurrentY, CurrentX, CurrentY, G, GoalX, GoalY); // West
+    
+    !astar_loop(GoalX, GoalY).
+
+// Generate successor node and add to open list if valid
++!generate_successor(X, Y, ParentX, ParentY, ParentG, GoalX, GoalY) : 
+    not obstacle(X, Y) &              // Not an obstacle
+    not in_closed_list(X, Y) <-       // Not in closed list
+    
+    // Calculate G (cost from start) - assume cost of 1 for each step
+    G = ParentG + 1;
+    
+    // Calculate H (heuristic to goal) using Manhattan distance
+    H = math.abs(GoalX - X) + math.abs(GoalY - Y);
+    
+    // Calculate F = G + H
+    F = G + H;
+    
+    // Check if node is already in open list
+    if (in_open_list(X, Y, OldG)) {
+        // Node already in open list, update if new path is better
+        if (G < OldG) {
+            // Better path found, update node
+            update_open_list(X, Y, G, H, F, ParentX, ParentY);
+        }
+    } else {
+        // Node not in open list, add it
+        ?open_list(OpenList);
+        -+open_list([[X, Y, G, H, F, ParentX, ParentY]|OpenList]);
+    }
+    true.
+
++!generate_successor(X, Y, ParentX, ParentY, ParentG, GoalX, GoalY) : true <- 
+    true. // Skip invalid successors
+
+// Check if node is in closed list
++in_closed_list(X, Y) : closed_list(ClosedList) & .member([X, Y, _, _, _, _, _], ClosedList).
+
+// Check if node is in open list and return G value
++in_open_list(X, Y, G) : open_list(OpenList) & .member([X, Y, G, _, _, _, _], OpenList).
+
+// Update node in open list with better path
++update_open_list(X, Y, G, H, F, ParentX, ParentY) : open_list(OpenList) <-
+    .findall([A, B, C, D, E, PX, PY], 
+             (.member([A, B, C, D, E, PX, PY], OpenList) & (A \== X | B \== Y)), 
+             FilteredList);
+    -+open_list([[X, Y, G, H, F, ParentX, ParentY]|FilteredList]).
+
+// Custom function to compare nodes by F value
++f_compare([_, _, _, _, F1, _, _], [_, _, _, _, F2, _, _], R) : F1 < F2 <- R = "<".
++f_compare([_, _, _, _, F1, _, _], [_, _, _, _, F2, _, _], R) : F1 > F2 <- R = ">".
++f_compare([_, _, _, _, F1, _, _], [_, _, _, _, F2, _, _], R) : F1 == F2 <- R = "=".
+
+// Reconstruct path from closed list
++!reconstruct_path(X, Y) : closed_list(ClosedList) <-
+    .print("Reconstructing path...");
+    
+    // Find goal node in closed list
+    .member([X, Y, _, _, _, ParentX, ParentY], ClosedList);
+    
+    // Start with goal position
+    ReconstructedPath = [[X, Y]];
+    
+    // Reconstruct by following parents until we reach start (-1, -1)
+    !build_path(ParentX, ParentY, ReconstructedPath, FinalPath);
+    
+    // Reverse path so it starts from start position
+    .reverse(FinalPath, ForwardPath);
+    
+    .print("Path constructed: ", ForwardPath);
+    -+path(ForwardPath).
+
+// Build path recursively by following parent pointers
++!build_path(-1, -1, Path, Path) : true <- 
+    .print("Path reconstruction complete").
+
++!build_path(X, Y, CurrentPath, FinalPath) : closed_list(ClosedList) <-
+    // Find parent in closed list
+    .member([X, Y, _, _, _, ParentX, ParentY], ClosedList);
+    
+    // Add current position to path
+    .concat(CurrentPath, [[X, Y]], NewPath);
+    
+    // Continue with parent
+    !build_path(ParentX, ParentY, NewPath, FinalPath).
+
+/* Movement and Navigation using A* */
++!navigate_to(X, Y) : my_position(MyX, MyY) <-
+    if (MyX == X & MyY == Y) {
+        .print("Already at destination (", X, ", ", Y, ")");
+    } else {
+        .print("Starting navigation to (", X, ", ", Y, ")");
+        !calculate_path(MyX, MyY, X, Y);
+        !follow_path(X, Y);
+    }.
+
+// Follow the calculated path
++!follow_path(TargetX, TargetY) : path([]) <-
+    .print("Path is empty, recalculating");
+    ?my_position(MyX, MyY);
+    !calculate_path(MyX, MyY, TargetX, TargetY).
+
+// Successfully reached target
++!follow_path(TargetX, TargetY) : my_position(TargetX, TargetY) <-
+    .print("Reached target position (", TargetX, ", ", TargetY, ")");
+    -+path([]). // Clear path
+
+// Follow next step in path
++!follow_path(TargetX, TargetY) : path([[NextX, NextY]|Rest]) & my_position(MyX, MyY) <-
+    // Determine direction to move
+    if (NextX > MyX) {
         Dir = e;
     } else {
-        if (MyX > X) {
+        if (NextX < MyX) {
             Dir = w;
         } else {
-            if (MyY < Y) {
+            if (NextY > MyY) {
                 Dir = n;
             } else {
                 Dir = s;
             }
         }
     }
-    .print("Moving ", Dir, " towards (", X, ", ", Y, ")");
+    
+    .print("Following path, moving ", Dir, " to (", NextX, ", ", NextY, ")");
     move(Dir);
-    !move_to(X, Y).
+    
+    // Update path to remove the step we just took
+    -+path(Rest);
+    
+    // Continue following path
+    !follow_path(TargetX, TargetY).
 
-+!calculate_path(StartX, StartY, EndX, EndY) : true <-
-    .print("Calculating path from (", StartX, ", ", StartY, ") to (", EndX, ", ", EndY, ")");
-    // A* pathfinding would be implemented here
-    // For now we'll use simple direct path.
+// Fallback if path following fails
+-!follow_path(TargetX, TargetY) : true <-
+    .print("Error following path, recalculating");
+    -+path([]);  // Clear path
+    ?my_position(MyX, MyY);
+    !calculate_path(MyX, MyY, TargetX, TargetY).
 
 /* Exploration */
 +!explore : true <-
@@ -134,7 +294,7 @@ visited([]).
 /* Task Delivery */
 +!deliver_task : carrying(_) & percept(goal(X,Y)) <-
     .print("Goal found at (", X, ", ", Y, "), delivering task");
-    !move_to(X, Y);
+    !navigate_to(X, Y);
     submit;
     .print("Task submitted successfully!");
     !find_tasks.
@@ -163,6 +323,10 @@ visited([]).
     .print("Not carrying any block");
     !find_tasks.
 
+// Handle obstacle perception
++thing(X, Y, obstacle, _) : true <-
+    .print("Detected obstacle at (", X, ", ", Y, ")").
+
 /* Error Handling */
 -!find_tasks : true <-
     .print("Error in find_tasks, retrying");
@@ -175,3 +339,11 @@ visited([]).
 -!deliver_task : true <-
     .print("Error in deliver_task, retrying");
     !explore.
+
+-!calculate_path(_, _, _, _) : true <-
+    .print("Error in calculate_path, using random movement");
+    !move_random.
+
+-!astar_loop(_, _) : true <-
+    .print("Error in A* loop, using random movement");
+    !move_random.
