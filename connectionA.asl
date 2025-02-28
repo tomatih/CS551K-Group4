@@ -13,8 +13,8 @@ random_dir(w).
 at(0, 0, 0). // (x, y, cost)
 visited([]).
 
-// Team coordination
-free_agent.
+// Team coordination 
+//free_agent.
 
 /* Initial Goals */
 !start.
