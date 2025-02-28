@@ -13,7 +13,8 @@ TODO:
   - [ ] 2 positions + obstacle map and a direction out for Voldy
   - [ ] Calum should make his own state machine that can be then acted on within my lost state
   - [ ] Up to the other 2 how they want to implement that
-- [ ] re-add obstacle awareness
+- [ ] re-add obstacle avoidance (med priority)
 - [ ] add rotation and optimisations for that (low priority ATM)
 - [ ] add awareness of walls (generalised rule free(x,y) would be in place)
-- 
+- [ ] goal submission failures still exist (FIX)
+- [ ] check if diagonal movement impacts them gettign stuck more

@@ -3,14 +3,20 @@ random_dir(DirList,RandomNumber,Dir) :- (RandomNumber <= 0.25 & .nth(0,DirList,D
 
 dir_to_offset(Dir,X,Y) :- (Dir=n & X=0 & Y=-1) | (Dir=s & X=0 & Y=1) | (Dir=e & X=1 & Y=0) | (Dir=w & X=-1 & Y=0).
 
-navigate(Ox,Oy,Dx,Dy,Dir) :- ( not Oy = Dy & ( (Oy<Dy & Dir = s ) | Dir=n ) ) | ( (Ox < Dx & Dir = e) | Dir = w ).
+//navigate(Ox,Oy,Dx,Dy,Dir) :- ( not Oy = Dy & ( (Oy<Dy & Dir = s ) | Dir=n ) ) | ( (Ox < Dx & Dir = e) | Dir = w ).
+navigate(Ox,Oy,Dx,Dy,Dir) :- ( distance(Ox,Dy,Dx,Dy, Gx) & distance(Dx,Oy,Dx,Dy,Gy) ) & ( (Gy>Gx & ((Oy<Dy & Dir = s ) | Dir=n )) | ( (Ox < Dx & Dir = e) | Dir = w ) ).
 
 abs(In,Out) :- (In<0 & Out=-In) | Out = In.
 delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
 distance(Ax,Ay,Bx,By,Dist) :- delta(Ax,Bx,Dx) & delta(Ay,By,Dy) & Dist = Dx+Dy.
 
+bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
+
 state_machine(lost).
 my_position(0,0).
+
+!init.
++!init : .random(RandomNumber) & random_dir([a(1,1),a(1,-1),a(-1,1),a(-1,-1)],RandomNumber,a(Dx,Dy)) <- B=500; Gx=B*Dx; Gy=B*Dy; +nav_goal(Gx,Gy); .print("Initialized for ",Gx," ",Gy).
 
 // Activated for each step of the simulation (quanta of this world)
 // only children of this plan are allowed to emit actions
@@ -32,6 +38,7 @@ my_position(0,0).
     !fix_task.
 
 +!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([Dir]) & dir_to_offset(Dir,Dx,Dy) & my_position(Ox,Oy) <- Nx=Ox+Dx; Ny=Oy+Dy; -my_position(Ox,Oy); +my_position(Nx,Ny).
++!update_position : lastActionResult(failed_forbidden) & lastAction(move) & lastActionParams([Dir]) & state_machine(lost) & nav_goal(Ox,Oy) & dir_to_offset(Dir, Fx,Fy) & bounce(Fx,Dx) & bounce(Fy,Dy) <- -nav_goal(Ox,Oy); Nx=Ox*Dx; Ny=Oy*Dy; +nav_goal(Nx,Ny).
 +!update_position : true <- true. // don't panic on lack of success or different actions
 
 +!update_obstacles : my_position(Mx,My) <- for (obstacle(Rx,Ry)) { X=Mx+Rx;Y=My+Ry; if(not saved_obstacle(X,Y)) { +saved_obstacle(X,Y) }; }.
@@ -50,7 +57,7 @@ my_position(0,0).
 +!updateStateMachine : state_machine(lost) & chosen_goal(_,_) & dispenser(b0, _,_) & dispenser(b1,_,_) <- -state_machine(lost); +state_machine(idle); .print("Fully initialized"). // become idle if all required fields are in the belief base
 +!updateStateMachine : state_machine(lost) <- true. // stay lost
 
-+!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step & dispenser(BlockType, Dx, Dy) & Gy=Dy-1 <- +nav_goal(Dx,Gy) ;+current_task(TaskId,BlockType); -state_machine(idle); +state_machine(toDispenser); .print("Picked task: ",TaskId).
++!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step & dispenser(BlockType, Dx, Dy) & Gy=Dy-1 <- -nav_goal(_,_); +nav_goal(Dx,Gy) ;+current_task(TaskId,BlockType); -state_machine(idle); +state_machine(toDispenser); .print("Picked task: ",TaskId).
 +!updateStateMachine : state_machine(idle) <- true. // can't find any tasks
 
 
@@ -70,12 +77,9 @@ my_position(0,0).
 +!updateStateMachine : state_machine(shouldSubmit) <- true. // don't panic still submitting (shouldn't trigger unless task duplicate)
 
 /* Action emitting plans */
-// Exploring logic
-+!decideAction : state_machine(lost) & .random(RandomNumber) & random_dir([n,s,e,w],RandomNumber,Dir) <- move(Dir).
-
 +!decideAction : state_machine(idle) <- skip. // No tasks found there is nothing to do
 
-+!decideAction : (state_machine(toDispenser) | state_machine(toGoal)) & nav_goal(Dx,Dy) & my_position(Mx,My) & navigate(Mx,My,Dx,Dy,Dir) <- move(Dir).
++!decideAction : (state_machine(lost) | state_machine(toDispenser) | state_machine(toGoal)) & nav_goal(Dx,Dy) & my_position(Mx,My) & navigate(Mx,My,Dx,Dy,Dir) <- move(Dir).
 
 +!decideAction : state_machine(atDispenser) <- request(s).
 
@@ -83,5 +87,5 @@ my_position(0,0).
 
 +!decideAction : state_machine(shouldSubmit) & current_task(TaskId,_) <- submit(TaskId).
 
-+!decideAction : true <- true.
++!decideAction : true <- .print("Action faield").
 
