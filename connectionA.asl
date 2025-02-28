@@ -43,11 +43,11 @@ my_position(0,0).
 
 +!update_obstacles : my_position(Mx,My) <- for (obstacle(Rx,Ry)) { X=Mx+Rx;Y=My+Ry; if(not saved_obstacle(X,Y)) { +saved_obstacle(X,Y) }; }.
 
-+!get_goal : not chosen_goal(_,_) & goal(Rx,Ry) & my_position(Mx,My) <- X=Rx+Mx; Y=Ry+My; +chosen_goal(X,Y).
++!get_goal : not chosen_goal(_,_) & goal(Rx,Ry) & my_position(Mx,My) & X=Rx+Mx & Y=Ry+My & Fy=Y+1 & not saved_obstacle(X,Fx) <- +chosen_goal(X,Y).
 +!get_goal : true <- true. // don't panic if a goal exist or no goal seen
 
-+!get_dispenser(BlockType) : not dispenser(BlockType,_,_) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & X=Rx+Mx & Y=Ry+My & not saved_obstacle(X,Y) <- +dispenser(BlockType,X,Y).
-+!get_dispenser(BlockType) : dispenser(BlockType,OldX,OldY) & chosen_goal(GoalX,GoalY) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & NewX=Rx+Mx & NewY=Ry+My & not saved_obstacle(NewX,NewY) & distance(OldX,OldY,GoalX,GoalY,OldDistance) & distance(NewX,NewY,GoalX,GoalY,NewDistance) & NewDistance < OldDistance <- -dispenser(BlockType,OldX,OldY); +dispenser(BlockType,NewX,NewY).
++!get_dispenser(BlockType) : not dispenser(BlockType,_,_) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & X=Rx+Mx & Y=Ry+My & not saved_obstacle(X,Y) & Fy=Y-1 & not saved_obstacle(X,Fy) <- +dispenser(BlockType,X,Y).
++!get_dispenser(BlockType) : dispenser(BlockType,OldX,OldY) & chosen_goal(GoalX,GoalY) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & NewX=Rx+Mx & NewY=Ry+My & not saved_obstacle(NewX,NewY) & Fy=Y-1 & not saved_obstacle(X,Fy) & distance(OldX,OldY,GoalX,GoalY,OldDistance) & distance(NewX,NewY,GoalX,GoalY,NewDistance) & NewDistance < OldDistance <- -dispenser(BlockType,OldX,OldY); +dispenser(BlockType,NewX,NewY).
 +!get_dispenser(_) : true <- true. // don't panic if no dispensers found
 
 +!fix_task : current_task(TaskId, BlockType) & not task(TaskId,_,_,_) & task(NewTaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step <- -current_task(TaskId, BlockType); +current_task(NewTaskId, BlockType).
