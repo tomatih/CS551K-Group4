@@ -50,20 +50,20 @@ my_position(0,0).
 +!updateStateMachine : state_machine(lost) & chosen_goal(_,_) & dispenser(b0, _,_) & dispenser(b1,_,_) <- -state_machine(lost); +state_machine(idle); .print("Fully initialized"). // become idle if all required fields are in the belief base
 +!updateStateMachine : state_machine(lost) <- true. // stay lost
 
-+!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step <- +current_task(TaskId,BlockType); -state_machine(idle); +state_machine(toDispenser); .print("Picked task: ",TaskId).
++!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step & dispenser(BlockType, Dx, Dy) & Gy=Dy-1 <- +nav_goal(Dx,Gy) ;+current_task(TaskId,BlockType); -state_machine(idle); +state_machine(toDispenser); .print("Picked task: ",TaskId).
 +!updateStateMachine : state_machine(idle) <- true. // can't find any tasks
 
 
-+!updateStateMachine : state_machine(toDispenser) & my_position(Mx,My) & current_task(_,Bt) & Cy = My+1 & dispenser(Bt,Mx,Cy) <- -state_machine(toDispenser); +state_machine(atDispenser); .print("At dispenser").
++!updateStateMachine : state_machine(toDispenser) & my_position(Mx,My) & nav_goal(Mx,My) <- -nav_goal(Mx,My); -state_machine(toDispenser); +state_machine(atDispenser); .print("At dispenser").
 +!updateStateMachine : state_machine(toDispenser) <- true. // don't panic still on my way
 
 +!updateStateMachine : state_machine(atDispenser) & lastActionResult(success) & lastAction(request) <- -state_machine(atDispenser); +state_machine(aboutToAttach); .print("Block requested").
 +!updateStateMachine : state_machine(atDispenser) <- true. // don't panic still waiting on block (should never trigger unless blocked)
 
-+!updateStateMachine : state_machine(aboutToAttach) & lastActionResult(success) & lastAction(attach) <- -state_machine(aboutToAttach); +state_machine(toGoal); .print("Block attached").
++!updateStateMachine : state_machine(aboutToAttach) & lastActionResult(success) & lastAction(attach) & chosen_goal(Gx,Gy) <- +nav_goal(Gx,Gy); -state_machine(aboutToAttach); +state_machine(toGoal); .print("Block attached").
 +!updateStateMachine : state_machine(aboutToAttach) <- true. // don't panic still waiting attachment (should never trigger unless blocked)
 
-+!updateStateMachine : state_machine(toGoal) & my_position(Mx,My) & chosen_goal(Mx,My) <- -state_machine(toGoal); +state_machine(shouldSubmit);.print("At goal").
++!updateStateMachine : state_machine(toGoal) & my_position(Mx,My) & nav_goal(Mx,My) <- -nav_goal(Mx,My); -state_machine(toGoal); +state_machine(shouldSubmit);.print("At goal").
 +!updateStateMachine : state_machine(toGoal) <- true. // don't panic still on my way
 
 +!updateStateMachine : state_machine(shouldSubmit) & lastActionResult(success) & lastAction(submit) <- -current_task(_,_) ;-state_machine(shouldSubmit); +state_machine(idle); .print("Task submitted").
@@ -75,13 +75,11 @@ my_position(0,0).
 
 +!decideAction : state_machine(idle) <- skip. // No tasks found there is nothing to do
 
-+!decideAction : state_machine(toDispenser) & my_position(Mx,My) & current_task(_,Bt) & dispenser(Bt,Dx,Dy) & Cy = Dy-1 & navigate(Mx,My,Dx,Cy,Dir)  <- move(Dir). // No tasks found there is nothing to do
++!decideAction : (state_machine(toDispenser) | state_machine(toGoal)) & nav_goal(Dx,Dy) & my_position(Mx,My) & navigate(Mx,My,Dx,Dy,Dir) <- move(Dir).
 
 +!decideAction : state_machine(atDispenser) <- request(s).
 
 +!decideAction : state_machine(aboutToAttach) <- attach(s).
-
-+!decideAction : state_machine(toGoal) & my_position(Mx,My) & chosen_goal(Gx,Gy) & navigate(Mx,My,Gx,Gy,Dir) <- move(Dir).
 
 +!decideAction : state_machine(shouldSubmit) & current_task(TaskId,_) <- submit(TaskId).
 
