@@ -1,6 +1,8 @@
 /* Initial beliefs and rules */
 random_dir(DirList,RandomNumber,Dir) :- (RandomNumber <= 0.25 & .nth(0,DirList,Dir)) | (RandomNumber <= 0.5 & .nth(1,DirList,Dir)) | (RandomNumber <= 0.75 & .nth(2,DirList,Dir)) | (.nth(3,DirList,Dir)).
 
+dir_to_offset(Dir,X,Y) :- (Dir=n & X=0 & Y=-1) | (Dir=s & X=0 & Y=1) | (Dir=e & X=1 & Y=0) | (Dir=w & X=-1 & Y=0).
+
 navigate(Ox,Oy,Dx,Dy,Dir) :- ( not Oy = Dy & ( (Oy<Dy & Dir = s ) | Dir=n ) ) | ( (Ox < Dx & Dir = e) | Dir = w ).
 
 abs(In,Out) :- (In<0 & Out=-In) | Out = In.
@@ -15,8 +17,6 @@ my_position(0,0).
 @step[atomic]
 +step(S) <-
     //.print("Step: ",S," start");
-    //myLib.parsePercepts(Percepts);
-    //myLib.updateBeliefBase(Percepts);
     !updateBeliefs;
     !updateStateMachine;
     !decideAction.
@@ -31,10 +31,7 @@ my_position(0,0).
     !get_dispenser(b1);
     !fix_task.
 
-+!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([n]) & my_position(X,Oy) <- Ny=Oy-1; -my_position(X,Oy); +my_position(X,Ny).
-+!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([s]) & my_position(X,Oy) <- Ny=Oy+1; -my_position(X,Oy); +my_position(X,Ny).
-+!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([e]) & my_position(Ox,Y) <- Nx=Ox+1; -my_position(Ox,Y); +my_position(Nx,Y).
-+!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([w]) & my_position(Ox,Y) <- Nx=Ox-1; -my_position(Ox,Y); +my_position(Nx,Y).
++!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([Dir]) & dir_to_offset(Dir,Dx,Dy) & my_position(Ox,Oy) <- Nx=Ox+Dx; Ny=Oy+Dy; -my_position(Ox,Oy); +my_position(Nx,Ny).
 +!update_position : true <- true. // don't panic on lack of success or different actions
 
 +!update_obstacles : my_position(Mx,My) <- for (obstacle(Rx,Ry)) { X=Mx+Rx;Y=My+Ry; if(not saved_obstacle(X,Y)) { +saved_obstacle(X,Y) }; }.
