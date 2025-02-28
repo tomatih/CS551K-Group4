@@ -4,7 +4,7 @@ random_dir(DirList,RandomNumber,Dir) :- (RandomNumber <= 0.25 & .nth(0,DirList,D
 dir_to_offset(Dir,X,Y) :- (Dir=n & X=0 & Y=-1) | (Dir=s & X=0 & Y=1) | (Dir=e & X=1 & Y=0) | (Dir=w & X=-1 & Y=0).
 
 //navigate(Ox,Oy,Dx,Dy,Dir) :- ( not Oy = Dy & ( (Oy<Dy & Dir = s ) | Dir=n ) ) | ( (Ox < Dx & Dir = e) | Dir = w ).
-navigate(Ox,Oy,Dx,Dy,Dir) :- ( distance(Ox,Dy,Dx,Dy, Gx) & distance(Dx,Oy,Dx,Dy,Gy) ) & ( (Gy>Gx & ((Oy<Dy & Dir = s ) | Dir=n )) | ( (Ox < Dx & Dir = e) | Dir = w ) ).
+navigate(Ox,Oy,Dx,Dy,Dir) :- ( distance(Ox,Dy,Dx,Dy, Gx) & distance(Dx,Oy,Dx,Dy,Gy) ) & ( ( Gy>Gx & ((Oy<Dy & Fy=Oy+1 & not saved_obstacle(Ox,Fy) & Dir = s ) | (Fy=Oy-1 & not saved_obstacle(Ox,Fy) & Dir=n) )) | ( (Ox < Dx & Fx=Ox+1 & not saved_obstacle(Fx,Oy) & Dir = e) | Fx=Ox-1 & not saved_obstacle(Fx,Oy) & Dir = w ) ).
 
 abs(In,Out) :- (In<0 & Out=-In) | Out = In.
 delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
