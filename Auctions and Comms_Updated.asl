@@ -72,12 +72,11 @@ bid_count(0).            // Track received bids
     .findall(received_bid(TaskID, _, Bid), [Bid1, Bid2, Bid3, Bid4]),
     MinBid is min([MyBid, Bid1, Bid2, Bid3, Bid4]) 
     <- 
-    (MyBid == MinBid -> 
+    if (MyBid == MinBid) then
         .print("I won task ", TaskID);
         !executeTask(TaskID)
-    ; 
-        .print("Task ", TaskID, " assigned to another agent")
-    ).
+    else
+        .print("Task ", TaskID, " assigned to another agent").
 
 // Execute task if won
 +!executeTask(TaskID) : true <- 
