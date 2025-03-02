@@ -313,3 +313,53 @@ my_position(0,0). // initial position in the personal global coodinate space
 
 // should never trigger, here to prevent plan failure
 +!decideAction : true <- .print("Action faield").
+
+// Calum addition for movement logic
+//
+@step[atomic]
++step(S) : state_machine(lost) <-
+    .print("Step: ", S, " calling movement plan");
+    !move_lost.
+
+// lost block handling
++!move_lost <-
+    ?free_directions(Dirs);
+    (.member(e, Dirs) -> move(e);
+     .member(s, Dirs) -> move(s);
+     .print("blocked, stopping"))
+
+/*--------------------------------------------------
+    movement to be auctioned
+--------------------------------------------------*/
+
+// move up left wall
++!move_up_wall <-
+    ?free_directions(Dirs);
+    (.member(n, Dirs) -> move(n);
+     .print("blocked up, stopping"))
+
+// move right along top wall
++!move_right_wall <-
+    ?free_directions(Dirs);
+    (.member(e, Dirs) -> move(e);
+     .print("blocked right, stopping"))
+
+// move down along right wall
++!move_down_wall <-
+    ?free_directions(Dirs);
+    (.member(s, Dirs) -> move(s);
+     .print("blocked down, stopping"))
+
+// move left along bottom wall
++!move_left_wall <-
+    ?free_directions(Dirs);
+    (.member(w, Dirs) -> move(w);
+     .print("blocked left, stopping"))
+
+// move diagonal for cross map intersection
++!move_cross <-
+    ?free_directions(Dirs);
+    (.member(ne, Dirs) -> move(ne);
+     .print("blocked diagonally, stopping"))
+
+//
