@@ -130,20 +130,22 @@ my_position(0,0). // initial position in the personal global coodinate space
     Ny=Oy+Dy;
     -my_position(Ox,Oy);
     +my_position(Nx,Ny).
-// wall bouncing for exploration TODO: bounce also on normal collisions
 +!update_position : 
-    lastActionResult(failed_forbidden) & 
+    (lastActionResult(failed_forbidden) | lastActionResult(failed_path)) & 
     lastAction(move) & 
     lastActionParams([Dir]) & 
     state_machine(lost) & 
     nav_goal(Ox,Oy) & 
     dir_to_offset(Dir, Fx,Fy) & 
     bounce(Fx,Dx) & 
-    bounce(Fy,Dy) 
+    bounce(Fy,Dy) &
+    my_position(Mx,My) &
+    abs(Ox,Ax) &
+    abs(Oy,Ay) 
     <- 
     -nav_goal(Ox,Oy); 
-    Nx=Ox*Dx; 
-    Ny=Oy*Dy; 
+    Nx=500*(Ox/Ax)*Dx + Mx; 
+    Ny=500*(Oy/Ay)*Dy + My;
     +nav_goal(Nx,Ny).
 // don't panic on lack of success or different actions
 +!update_position : true <- true. 
