@@ -15,6 +15,45 @@ dir_to_offset(Dir,X,Y) :-
     (Dir=e & X=1 & Y=0) | 
     (Dir=w & X=-1 & Y=0).
 
+// check if a given block is free
+//TODO: handle resizing
+free(X,Y) :- 
+    not saved_obstacle(X,Y) &
+    (
+        my_position(Mx,My) &
+        Ox = X-Mx &
+        Oy = Y-My &
+        not thing(Ox,Oy,entity,_) &
+        (not thing(Ox,Oy,block,_) | holding(Ox,Oy) )
+        //TODO: handle walls
+    ).
+
+// Idea: generate a list of choices for each move
+// format: [choice(dist,dir)]
+// before adding to list chech for freeness
+// if not free multiply by big number
+// then on move choose minimum from that list
+//TODO: disincentivise backtracking
+new_nav(Mx,My,Gx,Gy,Dir) :- 
+	(
+		Ny = My-1 &
+		Sy = My+1 &
+		Ex = Mx+1 &
+		Wx = Mx-1 
+	) & (
+		distance(Mx,Ny,Gx,Gy,Nd) &
+		distance(Mx,Sy,Gx,Gy,Sd) &
+		distance(Ex,My,Gx,Gy,Ed) &
+		distance(Wx,My,Gx,Gy,Wd) 
+	) & (
+		BigNum = 10000 &
+		( (not free(Mx,Ny) & Nmult=BigNum) | Nmult = 1) &
+		( (not free(Mx,Sy) & Smult=BigNum) | Smult = 1) &
+		( (not free(Ex,My) & Emult=BigNum) | Emult = 1) &
+		( (not free(Wx,My) & Wmult=BigNum) | Wmult = 1) 
+	) & 
+	.min([c(Nd*Nmult,n),c(Sd*Smult,s),c(Ed*Emult,e),c(Wd*Wmult,w) ],c(_,Dir)).
+
 // simplistic navigation
 // just a diagonal b-line for the target with no regard for anything
 navigate(Ox,Oy,Dx,Dy,Dir) :- 
@@ -91,7 +130,7 @@ my_position(0,0). // initial position in the personal global coodinate space
     Ny=Oy+Dy;
     -my_position(Ox,Oy);
     +my_position(Nx,Ny).
-// wall bouncing for exploration
+// wall bouncing for exploration TODO: bounce also on normal collisions
 +!update_position : 
     lastActionResult(failed_forbidden) & 
     lastAction(move) & 
@@ -122,6 +161,7 @@ my_position(0,0). // initial position in the personal global coodinate space
     }.
 
 // bind to the first seen valid goal
+//TODO: if both dispensers set, anf a goal seen, if the goal is closer to both of them, rebind
 +!get_goal : 
     not chosen_goal(_,_) & 
     goal(Rx,Ry) & 
@@ -246,11 +286,14 @@ my_position(0,0). // initial position in the personal global coodinate space
     state_machine(aboutToAttach) & 
     lastActionResult(success) & 
     lastAction(attach) & 
-    chosen_goal(Gx,Gy) 
+    chosen_goal(Gx,Gy) &
+    lastActionParams([Dir]) &
+    dir_to_offset(Dir,Ax,Ay)
     <-
     +nav_goal(Gx,Gy); 
     -state_machine(aboutToAttach);
     +state_machine(toGoal);
+    +holding(Ax,Ay);
     .print("Block attached").
 // don't panic still waiting attachment (should never trigger unless blocked)
 +!updateStateMachine : state_machine(aboutToAttach) <- true. 
@@ -275,6 +318,7 @@ my_position(0,0). // initial position in the personal global coodinate space
     lastAction(submit)
     <-
     -current_task(_,_);
+    -holding(_,_);
     -state_machine(shouldSubmit);
     +state_machine(idle);
     .print("Task submitted").
@@ -289,14 +333,20 @@ my_position(0,0). // initial position in the personal global coodinate space
 
 // navigation tasks
 +!decideAction : 
+	state_machine(lost) &
+	nav_goal(Dx,Dy) & 
+    my_position(Mx,My) & 
+    navigate(Mx,My,Dx,Dy,Dir)  
+    <-
+    move(Dir).
++!decideAction : 
     (
-        state_machine(lost) | 
         state_machine(toDispenser) | 
         state_machine(toGoal)
     ) &
     nav_goal(Dx,Dy) & 
     my_position(Mx,My) & 
-    navigate(Mx,My,Dx,Dy,Dir) 
+    new_nav(Mx,My,Dx,Dy,Dir) 
     <- 
     move(Dir).
 
