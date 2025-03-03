@@ -25,7 +25,12 @@ free(X,Y) :-
         Oy = Y-My &
         not thing(Ox,Oy,entity,_) &
         (not thing(Ox,Oy,block,_) | holding(Ox,Oy) )
-        //TODO: handle walls
+    )&
+    (
+        wall(n,_,Ymin) & wall(s,_, Ymax) &
+        Ymin <= Y & Ymax >= Y &
+        wall(e, Xmax,_) & wall(w,Xmin,_) &
+        Xmin <= X & Xmax >= X
     ).
 
 // Idea: generate a list of choices for each move
@@ -79,6 +84,11 @@ bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
 --------------------------------------------------*/
 state_machine(lost). // the starting state of the top level state machine
 my_position(0,0). // initial position in the personal global coodinate space
+// know that the world end somewhere not exactly sure where, but far
+wall(n,0,-1000).
+wall(s,0, 1000).
+wall(e, 1000,0).
+wall(w,-1000,0).
 
 /*--------------------------------------------------
                        Core
@@ -222,6 +232,14 @@ my_position(0,0). // initial position in the personal global coodinate space
     +current_task(NewTaskId, BlockType).
 // don't panic nothing to fix.
 +!fix_task : true <- true.
+
+// If run into a wall save it
++lastActionResult(failed_forbidden) : 
+    my_position(Mx,My) & 
+    lastActionParams([Dir]) 
+    <- 
+    -wall(Dir,_,_); 
+    +wall(Dir,Mx,My).
 
 /*--------------------------------------------------
              State Machine transitions
