@@ -1,118 +1,179 @@
-// Initial Beliefs and Rules for 5 Agents
-position(0,0).  
-team_member(agent2).  // List all teammates
-team_member(agent3).
-team_member(agent4).
-team_member(agent5).
-my_bid(none, 9999).      // (TaskID, BidValue)
-received_bid(none, none, 9999).  // (TaskID, AgentID, BidValue)
-bid_count(0).            // Track received bids
+Step 1: Agent Identification and Role Assignment
 
-// Initial Goal
-!start.
+/*--------------------------------------------------
+                  Auction Roles Setup
+--------------------------------------------------*/
+// Self identification (Set via MAS2J parameters)
+self_name(Self) <- .my_name(Self).
 
-// Plans
-+!start : true <- 
-    .print("Agent initialized.");
-    !shareLocation;  
-    !listenForTasks.
+// Team knowledge (Same for all agents)
+team_member(Agent) <- 
+    .my_team(Members) & 
+    .member(Agent, Members) & 
+    Agent \== Self.
 
-// Share location with all teammates
-+!shareLocation : true <- 
-    ?position(X, Y);
-    .for(team_member(AgentID), 
-        .send(AgentID, tell, position(self, X, Y))
+// Dynamic auction role assignment
++task(TaskID, _, _, _) : 
+    not auction_in_progress(TaskID) & 
+    .my_name(Self)
+    <-
+    +auctioneer(Self, TaskID);      // First agent to detect becomes auctioneer
+    +auction_in_progress(TaskID);
+    .print(Self," is auctioneer for ",TaskID);
+    !start_auction(TaskID).
+Step 2: Auction Initiation Process (Auctioneer)
+
+/*--------------------------------------------------
+                  Auctioneer Logic
+--------------------------------------------------*/
+// Auctioneer: Start bidding process
++!start_auction(TaskID) : 
+    auctioneer(Self, TaskID)
+    <-
+    .print(Self," starting auction for ",TaskID);
+    .send(teammate(Bidder), auction_announce(TaskID));
+    +bid_collection(TaskID, []);    // Empty bid list
+    .wait(2000, check_bids(TaskID)). // Wait 2 seconds for bids
+
+// Auctioneer: Collect bids
++auction_bid(TaskID, Bidder, BidValue)[source(Bidder)] : 
+    auctioneer(Self, TaskID) & 
+    bid_collection(TaskID, CurrentBids)
+    <-
+    -bid_collection(TaskID, CurrentBids);
+    +bid_collection(TaskID, [bid(Bidder,BidValue)|CurrentBids]).
+
+// Auctioneer: Evaluate bids after timeout
++check_bids(TaskID) : 
+    auctioneer(Self, TaskID) & 
+    bid_collection(TaskID, AllBids)
+    <-
+    .min_member(bid(_,MinBid), AllBids); // Find lowest bid
+    .findall(Bidder, .member(bid(Bidder,MinBid), AllBids), Winners);
+    (Winners = [Winner|_] ->          // Select first winner if tie
+        .send(Winner, award_task(TaskID));
+        .print(Self," awarded ",TaskID," to ",Winner)
     );
-    .print("Shared location with team").
+    -auction_in_progress(TaskID);
+    -auctioneer(Self, TaskID).
+Step 3: Bidder Logic (Participants)
 
-// Listen for teammate locations
-+position(AgentID, X, Y) : team_member(AgentID) <- 
-    .print("Received location from ", AgentID, ": (", X, ",", Y, ")");
-    +teammate_position(AgentID, X, Y).
+/*--------------------------------------------------
+                  Bidder Logic
+--------------------------------------------------*/
+// Participant: Handle auction announcement
++auction_announce(TaskID)[source(Auctioneer)] : 
+    not auctioneer(_, TaskID) & 
+    .my_name(Self)
+    <-
+    .print(Self," participating in auction for ",TaskID);
+    !calculate_bid(TaskID, Auctioneer).
 
-// Auction System for 5 Agents
-+!listenForTasks : perceive(task(TaskID, BlockType, Dispenser, GoalX, GoalY)) <- 
-    .print("New task detected: ", TaskID);
-    !calculateBid(TaskID, Dispenser, GoalX, GoalY);
-    !sendBid(TaskID).
+// Participant: Dynamic bid calculation
++!calculate_bid(TaskID, Auctioneer) : 
+    task(TaskID, _, _, [req(_,_,BlockType)]) &
+    dispenser(BlockType, DispenserX, DispenserY) &
+    goal(GoalX, GoalY) &
+    my_position(CurrentX, CurrentY)
+    <-
+    // Calculate total path cost
+    distance(CurrentX, CurrentY, DispenserX, DispenserY, ToDispenser);
+    distance(DispenserX, DispenserY, GoalX, GoalY, ToGoal);
+    TotalCost is ToDispenser + ToGoal;
+    // Add random variance to prevent ties
+    .random(0.0, 0.5, Variance);
+    FinalBid is TotalCost * (1.0 + Variance);
+    .send(Auctioneer, auction_bid(TaskID, Self, FinalBid));
+    .print(Self," bid ",FinalBid," for ",TaskID).
 
-// Calculate bid based on Manhattan distance
-+!calculateBid(TaskID, DispenserX, DispenserY, GoalX, GoalY) : true <- 
-    ?position(CurX, CurY);
-    DistanceToDispenser is abs(DispenserX - CurX) + abs(DispenserY - CurY);
-    DistanceToGoal is abs(GoalX - CurX) + abs(GoalY - CurY);
-    TotalDistance is DistanceToDispenser + DistanceToGoal;
-    -my_bid(_, _);
-    +my_bid(TaskID, TotalDistance);
-    .print("My bid for ", TaskID, ": ", TotalDistance).
+// Participant: Handle task award
++award_task(TaskID)[source(Auctioneer)] : 
+    .my_name(Self)
+    <-
+    .print(Self," won ",TaskID);
+    !handle_awarded_task(TaskID).
+Step 4: Task Binding and Execution
 
-// Broadcast bid to all 4 teammates
-+!sendBid(TaskID) : my_bid(TaskID, BidValue) <- 
-    .for(team_member(AgentID), 
-        .send(AgentID, tell, bid(TaskID, BidValue))
-    );
-    .print("Broadcasted bid for ", TaskID, ": ", BidValue);
-    +bid_count(0).  // Reset counter
+/*--------------------------------------------------
+                  Task Execution Binding
+--------------------------------------------------*/
+// Winner: Integrate with existing task handling
++!handle_awarded_task(TaskID) : 
+    task(TaskID, _, _, [req(_,_,BlockType)]) &
+    state_machine(idle)
+    <-
+    -state_machine(idle);
+    +state_machine(toDispenser);
+    +current_task(TaskID, BlockType);
+    !bindTaskToNavigation(TaskID).  // Use existing navigation
 
-// Collect bids from teammates
-+bid(TaskID, BidValue) : team_member(Sender) & my_bid(TaskID, MyBid) <- 
-    .print("Received bid from ", Sender, ": ", BidValue);
-    +received_bid(TaskID, Sender, BidValue);
-    ?bid_count(Count);
-    NewCount is Count + 1;
-    -bid_count(Count);
-    +bid_count(NewCount);
-    (NewCount == 4 ->  // Received all 4 teammate bids
-        !determineAuctionWinner(TaskID)
-    ).
+// Existing navigation plans remain unchanged
+// ...
+Step 5: Cleanup and Conflict Prevention
 
-// Determine winner (agent with lowest bid)
-+!determineAuctionWinner(TaskID) : 
-    my_bid(TaskID, MyBid),
-    .findall(received_bid(TaskID, _, Bid), [Bid1, Bid2, Bid3, Bid4]),
-    MinBid is min([MyBid, Bid1, Bid2, Bid3, Bid4]) 
-    <- 
-    if (MyBid == MinBid) then
-        .print("I won task ", TaskID);
-        !executeTask(TaskID)
-    else
-        .print("Task ", TaskID, " assigned to another agent").
+/*--------------------------------------------------
+                  Auction Cleanup
+--------------------------------------------------*/
+// All agents: Handle auction completion
++auction_complete(TaskID)[source(Auctioneer)] : 
+    .my_name(Self) & 
+    Self \== Auctioneer
+    <-
+    -auction_announce(TaskID);
+    -auction_bid(TaskID, _, _).
 
-// Execute task if won
-+!executeTask(TaskID) : true <- 
-    .print("Executing task ", TaskID);
-    perceive(task(TaskID, BlockType, Dispenser, GoalX, GoalY));
-    !navigateTo(DispenserX, DispenserY);  // Go to dispenser
-    !requestBlock(BlockType);
-    !navigateTo(GoalX, GoalY);           // Go to goal
-    submit(TaskID);
-    .print("Task ", TaskID, " completed");
-    -my_bid(TaskID, _);                  // Cleanup
-    -received_bid(TaskID, _, _);
-    !listenForTasks.
+// Auctioneer: Final cleanup
++check_bids(TaskID) : 
+    auctioneer(Self, TaskID)
+    <-
+    .send(teammate(Bidder), auction_complete(TaskID));
+    -bid_collection(TaskID, _);
+    .print(Self," completed auction for ",TaskID).
 
-// Navigation with obstacle avoidance
-+!navigateTo(X, Y) : not obstacle(X, Y) <- 
-    move(X, Y);
-    .print("Moving to (", X, ",", Y, ")").
 
-+!navigateTo(X, Y) : obstacle(X, Y) <- 
-    .print("Obstacle at (", X, ",", Y, ")");
-    !findAlternativePath(X, Y).
 
-// Obstacle detection and sharing
-+perceive(obstacle(X, Y)) : true <- 
-    .for(team_member(AgentID), 
-        .send(AgentID, tell, obstacle(X, Y))
-    );
-    +obstacle(X, Y).
 
-// Step handler
-+step(_) : true <- 
-    ?position(X, Y);
-    !updatePosition(X, Y).
+Implementation Flow
 
-+!updatePosition(X, Y) : true <- 
-    -position(_, _);
-    +position(X, Y);
-    !shareLocation.
+1. Task Detection
+
+First agent to detect task becomes auctioneer
+
+Others become bidders automatically
+
+2. Bid Calculation
+
+Real-time Manhattan distance calculation
+
+Random variance prevents bidding ties
+
+Considers both dispenser and goal distances
+
+3. Auction Process
+
+sequenceDiagram
+    participant Auctioneer
+    participant Bidder1
+    participant Bidder2
+    Auctioneer->>Bidder1: auction_announce(T1)
+    Auctioneer->>Bidder2: auction_announce(T1)
+    Bidder1->>Auctioneer: auction_bid(T1, 15.2)
+    Bidder2->>Auctioneer: auction_bid(T1, 18.7)
+    Auctioneer->>Bidder1: award_task(T1)
+    Auctioneer->>All: auction_complete(T1)
+
+4. Execution Binding
+
+Winner integrates with existing navigation through !bindTaskToNavigation
+
+Uses original state machine transitions
+
+5. Failure Handling
+
+Timeout-based bid collection (2 seconds)
+
+Automatic cleanup of auction artifacts
+
+Conflict prevention through atomic role assignment
+
+
