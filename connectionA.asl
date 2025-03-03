@@ -293,4 +293,255 @@ visited(0,0,1). // Mark starting position as visited
     submit(TaskId).
 
 +!decideAction : true <- 
-    .print("Action failed").
+    .print("Action failed")./* Initial beliefs and rules */
+dir_to_offset(n,0,-1).
+dir_to_offset(s,0,1).
+dir_to_offset(e,1,0).
+dir_to_offset(w,-1,0).
+
+// Helper functions
+abs(In,Out) :- (In<0 & Out=-In) | Out = In.
+delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
+distance(Ax,Ay,Bx,By,Dist) :- delta(Ax,Bx,Dx) & delta(Ay,By,Dy) & Dist = Dx+Dy.
+
+// Simplified navigation that prioritizes getting to the goal quickly
+navigate(Ox,Oy,Dx,Dy,Dir) :- 
+    // Calculate absolute differences in X and Y
+    delta(Ox,Dx,AbsDx) & delta(Oy,Dy,AbsDy) &
+    
+    // Decide which axis to prioritize based on larger difference
+    ((AbsDx > AbsDy & Ox < Dx & not saved_obstacle(Ox+1,Oy) & Dir = e) |
+     (AbsDx > AbsDy & Ox > Dx & not saved_obstacle(Ox-1,Oy) & Dir = w) |
+     (AbsDx <= AbsDy & Oy < Dy & not saved_obstacle(Ox,Oy+1) & Dir = s) |
+     (AbsDx <= AbsDy & Oy > Dy & not saved_obstacle(Ox,Oy-1) & Dir = n) |
+     // Fallbacks if preferred direction is blocked
+     (not saved_obstacle(Ox+1,Oy) & Dir = e) |
+     (not saved_obstacle(Ox-1,Oy) & Dir = w) |
+     (not saved_obstacle(Ox,Oy-1) & Dir = n) |
+     (not saved_obstacle(Ox,Oy+1) & Dir = s)).
+
+/* Initial beliefs */
+state_machine(exploring).
+my_position(0,0).
+
+// Initialization
+!init.
++!init <- 
+    // Pick an exploration quadrant based on agent name 
+    .my_name(Name);
+    .length(Name, L);
+    .substring(Name, L-1, L, LastChar);
+    .term2string(LastCharNum, LastChar);
+    Quadrant = (LastCharNum mod 4);
+    
+    // Set X and Y direction based on quadrant
+    if (Quadrant = 0) { DirX = 1; DirY = 1; }    // Northeast
+    else { if (Quadrant = 1) { DirX = -1; DirY = 1; }    // Southeast
+    else { if (Quadrant = 2) { DirX = -1; DirY = -1; }   // Southwest
+    else { DirX = 1; DirY = -1; }}}; // Northwest
+    
+    // Set exploration goal
+    Gx = 300 * DirX;
+    Gy = 300 * DirY;
+    +explore_goal(Gx, Gy);
+    
+    .print("Started exploring toward (", Gx, ", ", Gy, ")").
+
+// Main execution cycle
+@step[atomic]
++step(S) <-
+    !updateBeliefs;
+    !updateStateMachine;
+    !decideAction.
+
+/* Belief updates */
++!updateBeliefs <-
+    !update_position;
+    !update_obstacles;
+    !get_goal;
+    !get_dispensers;
+    !check_tasks.
+
+// Update position after successful move
++!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([Dir]) & dir_to_offset(Dir,Dx,Dy) & my_position(Ox,Oy) <- 
+    Nx = Ox + Dx; 
+    Ny = Oy + Dy; 
+    -my_position(Ox,Oy); 
+    +my_position(Nx,Ny).
+
+// Handle failed move (hit obstacle)
++!update_position : lastActionResult(failed_forbidden) & lastAction(move) & lastActionParams([Dir]) & dir_to_offset(Dir,Dx,Dy) & my_position(Mx,My) <- 
+    // Mark obstacle location
+    Ox = Mx + Dx;
+    Oy = My + Dy;
+    +saved_obstacle(Ox,Oy).
+
++!update_position : true <- true. // Default case
+
+// Update obstacles from perception
++!update_obstacles : my_position(Mx,My) <- 
+    for (obstacle(Rx,Ry)) { 
+        X = Mx + Rx;
+        Y = My + Ry; 
+        if (not saved_obstacle(X,Y)) { 
+            +saved_obstacle(X,Y); 
+        }; 
+    }.
+
+// Update goals from perception
++!get_goal : not chosen_goal(_,_) & goal(Rx,Ry) & my_position(Mx,My) <- 
+    X = Mx + Rx;
+    Y = My + Ry;
+    +chosen_goal(X,Y);
+    .print("Found goal at (", X, ", ", Y, ")").
++!get_goal : true <- true.
+
+// Update dispensers from perception 
++!get_dispensers <- 
+    !check_dispenser(b0);
+    !check_dispenser(b1).
+
++!check_dispenser(BlockType) : thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) <- 
+    X = Mx + Rx;
+    Y = My + Ry;
+    
+    // Only update if we don't have this dispenser or found a better one
+    if (dispenser(BlockType,OldX,OldY)) {
+        if (chosen_goal(GoalX,GoalY)) {
+            distance(X,Y,GoalX,GoalY,NewDist);
+            distance(OldX,OldY,GoalX,GoalY,OldDist);
+            if (NewDist < OldDist) {
+                -dispenser(BlockType,OldX,OldY);
+                +dispenser(BlockType,X,Y);
+                .print("Updated ", BlockType, " dispenser to (", X, ", ", Y, ")");
+            }
+        }
+    } else {
+        +dispenser(BlockType,X,Y);
+        .print("Found ", BlockType, " dispenser at (", X, ", ", Y, ")");
+    }.
++!check_dispenser(_) : true <- true.
+
+// Look for available tasks
++!check_tasks : not current_task(_,_) & chosen_goal(_,_) <- 
+    // Find tasks with blocks we know dispensers for
+    for (task(TaskId, Deadline, Reward, [req(_,_,BlockType)]) & dispenser(BlockType,_,_) & step(S) & Deadline > S + 10) {
+        if (not current_task(_,_)) {
+            +current_task(TaskId, BlockType);
+            .print("Selected task: ", TaskId, " with ", BlockType);
+        }
+    }.
++!check_tasks : true <- true.
+
+/* State Machine Logic */
++!updateStateMachine : state_machine(exploring) & chosen_goal(_,_) & (dispenser(b0,_,_) | dispenser(b1,_,_)) <- 
+    -state_machine(exploring); 
+    +state_machine(working);
+    .print("Found resources, ready to work").
+
++!updateStateMachine : state_machine(exploring) & current_task(_,_) <- 
+    -state_machine(exploring); 
+    +state_machine(working);
+    .print("Taking on task while exploring").
+
++!updateStateMachine : true <- true. // Default case
+
+/* Action Logic */
++!decideAction : state_machine(exploring) & explore_goal(Gx,Gy) & my_position(Mx,My) <- 
+    ?navigate(Mx,My,Gx,Gy,Dir);
+    .print("Exploring toward (", Gx, ", ", Gy, ")");
+    move(Dir).
+
++!decideAction : state_machine(working) & current_task(TaskId,BlockType) & dispenser(BlockType,Dx,Dy) & not attached(_) <- 
+    !go_to_dispenser(BlockType).
+
++!decideAction : state_machine(working) & current_task(TaskId,_) & attached(_) & chosen_goal(Gx,Gy) <- 
+    !go_to_goal.
+
++!decideAction : state_machine(working) & not current_task(_,_) <- 
+    // No current task, look for one or continue exploring
+    if (chosen_goal(_,_) & (dispenser(b0,_,_) | dispenser(b1,_,_))) {
+        !check_tasks;
+        if (current_task(_,_)) {
+            !decideAction;
+        } else {
+            skip;
+        }
+    } else {
+        if (explore_goal(Gx,Gy)) {
+            !decideAction;
+        } else {
+            skip;
+        }
+    }.
+
++!decideAction : true <- 
+    .random(R);
+    if (R < 0.25) { move(n); }
+    else { if (R < 0.5) { move(e); }
+    else { if (R < 0.75) { move(s); }
+    else { move(w); }}}.
+
+/* Helper plans for actions */
++!go_to_dispenser(BlockType) : dispenser(BlockType,Dx,Dy) & my_position(Mx,My) <- 
+    if (Mx = Dx & My = Dy) {
+        // At dispenser position, try to request
+        request(s);
+        .print("Requesting block");
+    } else {
+        if (Mx = Dx & My = Dy + 1) {
+            // North of dispenser, try to request
+            request(n);
+            .print("Requesting block from north");
+        } else {
+            if (Mx = Dx & My = Dy - 1) {
+                // South of dispenser, in position!
+                request(s);
+                .print("Requesting block from south");
+            } else {
+                if (Mx = Dx + 1 & My = Dy) {
+                    // East of dispenser
+                    request(w);
+                    .print("Requesting block from east");
+                } else {
+                    if (Mx = Dx - 1 & My = Dy) {
+                        // West of dispenser
+                        request(e);
+                        .print("Requesting block from west");
+                    } else {
+                        // Navigate to dispenser
+                        ?navigate(Mx,My,Dx,Dy,Dir);
+                        .print("Moving to dispenser at (", Dx, ", ", Dy, ")");
+                        move(Dir);
+                    }
+                }
+            }
+        }
+    }.
+
++!go_to_goal : chosen_goal(Gx,Gy) & my_position(Mx,My) & current_task(TaskId,_) <- 
+    if (distance(Mx,My,Gx,Gy) <= 1) {
+        // At or adjacent to goal, submit task
+        submit(TaskId);
+        .print("Submitting task: ", TaskId);
+    } else {
+        // Navigate to goal
+        ?navigate(Mx,My,Gx,Gy,Dir);
+        .print("Moving to goal at (", Gx, ", ", Gy, ")");
+        move(Dir);
+    }.
+
+// Handle successful attachment of block
++attached(Dir) : current_task(TaskId,_) & chosen_goal(Gx,Gy) <- 
+    .print("Block attached, heading to goal").
+
+// Handle successful task submission - clear task and look for new one
++lastActionResult(success) : lastAction(submit) & lastActionParams([TaskId]) <- 
+    -current_task(TaskId,_);
+    !check_tasks;
+    .print("Task completed successfully!").
+
+// Handle request success - try to attach
++lastActionResult(success) : lastAction(request) <- 
+    .print("Got block, attaching");
+    attach(s).
