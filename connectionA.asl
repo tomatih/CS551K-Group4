@@ -184,7 +184,6 @@ wall(w,-1000,0).
     }.
 
 // bind to the first seen valid goal
-//TODO: if both dispensers set, anf a goal seen, if the goal is closer to both of them, rebind
 +!get_goal : 
     not chosen_goal(_,_) & 
     goal(Rx,Ry) & 
@@ -194,6 +193,26 @@ wall(w,-1000,0).
     Fy=Y+1 & 
     not saved_obstacle(X,Fx) 
     <- 
+    +chosen_goal(X,Y).
+//if both dispensers set, anf a goal seen, if the goal is closer to both of them, rebind
++!get_goal:
+    chosen_goal(Ox,Oy) & 
+    dispenser(b0,Xb0,Yb0) &
+    dispenser(b1,Xb1,Yb0) &
+    goal(Rx,Ry) & 
+    my_position(Mx,My) & 
+    X=Rx+Mx & 
+    Y=Ry+My & 
+    Fy=Y+1 & 
+    not saved_obstacle(X,Fx) &
+    distance(Ox,Oy,Xb0,Yb0, Dob0) &
+    distance(Ox,Oy,Xb1,Yb1, Dob1) &
+    distance(X,Y,Xb0,Yb0, Dnb0) &
+    distance(X,Y,Xb1,Yb1, Dnb1) &
+    Dnb0 < Dob0 &
+    Dnb1 < Dnb0 
+    <-
+    -chosen_goal(Ox,Oy);
     +chosen_goal(X,Y).
 // don't panic if a goal exist or no goal seen    
 +!get_goal : true <- true.

@@ -19,3 +19,4 @@ TODO:
 - [ ] new failure mode, starts going right until hits the wall then works again??? might have sth to do with failed movment while carrying
 - [ ] a terrain,gap,terrain setup paralyzes agents in exploration
 - [ ] when n wall found do a check to purge dispensers that are too close
+- [ ] when rebinding, do a check for current state and update nav goals to the new bind
