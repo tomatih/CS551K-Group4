@@ -1,177 +1,296 @@
-/* 
- * Enhanced agent for CS551K-Contest
- * Capabilities: navigation, block detection, carrying, goal finding, task completion
- */
+/* Initial beliefs and rules */
+random_dir(DirList,RandomNumber,Dir) :- (RandomNumber <= 0.25 & .nth(0,DirList,Dir)) | (RandomNumber <= 0.5 & .nth(1,DirList,Dir)) | (RandomNumber <= 0.75 & .nth(2,DirList,Dir)) | (.nth(3,DirList,Dir)).
 
-/* Initial Beliefs */
-random_dir(n).
-random_dir(s).
-random_dir(e).
-random_dir(w).
+dir_to_offset(Dir,X,Y) :- (Dir=n & X=0 & Y=-1) | (Dir=s & X=0 & Y=1) | (Dir=e & X=1 & Y=0) | (Dir=w & X=-1 & Y=0).
 
-// A* pathfinding beliefs ,Trying to implement A* graph path finding algo
-at(0, 0, 0). // (x, y, cost)
-visited([]).
+// Enhanced navigation logic that combines different strategies
+navigate(Ox,Oy,Dx,Dy,Dir) :- 
+    // Try potential field navigation first (balances goal attraction and obstacle repulsion)
+    balanced_navigate(Ox,Oy,Dx,Dy,Dir) |
+    // If potential field fails, fall back to weighted exploration
+    explore_navigate(Ox,Oy,Dx,Dy,Dir) |
+    // Last resort: simple direct navigation
+    simple_navigate(Ox,Oy,Dx,Dy,Dir).
 
-// Team coordination 
-//free_agent.
+// Simple direct navigation (improved version of original)
+simple_navigate(Ox,Oy,Dx,Dy,Dir) :- 
+    ((Ox < Dx & not saved_obstacle(Ox+1,Oy) & Dir = e) |
+     (Ox > Dx & not saved_obstacle(Ox-1,Oy) & Dir = w) |
+     (Oy < Dy & not saved_obstacle(Ox,Oy+1) & Dir = s) |
+     (Oy > Dy & not saved_obstacle(Ox,Oy-1) & Dir = n) |
+     (not saved_obstacle(Ox+1,Oy) & Dir = e) |
+     (not saved_obstacle(Ox,Oy-1) & Dir = n) |
+     (not saved_obstacle(Ox-1,Oy) & Dir = w) |
+     (not saved_obstacle(Ox,Oy+1) & Dir = s)).
 
-/* Initial Goals */
-!start.
+// Helper functions
+abs(In,Out) :- (In<0 & Out=-In) | Out = In.
+delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
+distance(Ax,Ay,Bx,By,Dist) :- delta(Ax,Bx,Dx) & delta(Ay,By,Dy) & Dist = Dx+Dy.
+bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
 
-/* Plans */
-+!start : true <- 
-    .print("Agent started and ready for operation.");
-    !find_tasks.
+/* Balanced navigation implementation - FIXED and BALANCED */
+balanced_navigate(X,Y,GoalX,GoalY,Dir) :-
+    distance(X,Y,GoalX,GoalY,Dist) & Dist > 0 &
+    // Calculate absolute differences
+    delta(X,GoalX,Dx) & delta(Y,GoalY,Dy) &
+    // Get agent identifier or use time as pseudo-random value
+    .my_name(Name) & .length(Name, NameLen) &
+    step(S) &
+    // Use a combination of step and agent name to vary behavior
+    VaryFactor = (S + NameLen) mod 4 &
+    
+    // Option 1: Prioritize horizontal (33% chance)
+    ((VaryFactor = 0 | VaryFactor = 1) & 
+     ((X < GoalX & not saved_obstacle(X+1,Y) & Dir = e) |
+      (X > GoalX & not saved_obstacle(X-1,Y) & Dir = w) |
+      (Y < GoalY & not saved_obstacle(X,Y+1) & Dir = s) |
+      (Y > GoalY & not saved_obstacle(X,Y-1) & Dir = n))) |
+    
+    // Option 2: Prioritize vertical (33% chance)
+    ((VaryFactor = 2 | VaryFactor = 3) & 
+     ((Y < GoalY & not saved_obstacle(X,Y+1) & Dir = s) |
+      (Y > GoalY & not saved_obstacle(X,Y-1) & Dir = n) |
+      (X < GoalX & not saved_obstacle(X+1,Y) & Dir = e) |
+      (X > GoalX & not saved_obstacle(X-1,Y) & Dir = w))) &
+    
+    // Get offset for this direction and check visit history
+    dir_to_offset(Dir,OffX,OffY) &
+    NewX = X + OffX &
+    NewY = Y + OffY &
+    (not visited(NewX,NewY,_) | visited(NewX,NewY,Count) & Count < 3).
 
-/* Task Management */
-+!find_tasks : true <- 
-    ?my_name(Name);
-    .print(Name, " looking for available tasks");
-    !scan_environment.
+/* Memory-enhanced exploration navigation */
+// Exploration-based navigation using visit counts
+explore_navigate(X,Y,GoalX,GoalY,Dir) :-
+    // Add randomization to exploration order based on step
+    step(S) & DirectionOffset = S mod 4 &
+    
+    // Try directions in a randomized order
+    ((DirectionOffset = 0 &
+      ((not saved_obstacle(X+1,Y) & (not visited(X+1,Y,_) | 
+          (visited(X+1,Y,CountE) & CountE < 2)) & Dir = e) |
+       (not saved_obstacle(X,Y-1) & (not visited(X,Y-1,_) | 
+          (visited(X,Y-1,CountN) & CountN < 2)) & Dir = n) |
+       (not saved_obstacle(X-1,Y) & (not visited(X-1,Y,_) | 
+          (visited(X-1,Y,CountW) & CountW < 2)) & Dir = w) |
+       (not saved_obstacle(X,Y+1) & (not visited(X,Y+1,_) | 
+          (visited(X,Y+1,CountS) & CountS < 2)) & Dir = s))) |
+          
+    (DirectionOffset = 1 &
+      ((not saved_obstacle(X,Y-1) & (not visited(X,Y-1,_) | 
+          (visited(X,Y-1,CountN) & CountN < 2)) & Dir = n) |
+       (not saved_obstacle(X-1,Y) & (not visited(X-1,Y,_) | 
+          (visited(X-1,Y,CountW) & CountW < 2)) & Dir = w) |
+       (not saved_obstacle(X,Y+1) & (not visited(X,Y+1,_) | 
+          (visited(X,Y+1,CountS) & CountS < 2)) & Dir = s) |
+       (not saved_obstacle(X+1,Y) & (not visited(X+1,Y,_) | 
+          (visited(X+1,Y,CountE) & CountE < 2)) & Dir = e))) |
+          
+    (DirectionOffset = 2 &
+      ((not saved_obstacle(X-1,Y) & (not visited(X-1,Y,_) | 
+          (visited(X-1,Y,CountW) & CountW < 2)) & Dir = w) |
+       (not saved_obstacle(X,Y+1) & (not visited(X,Y+1,_) | 
+          (visited(X,Y+1,CountS) & CountS < 2)) & Dir = s) |
+       (not saved_obstacle(X+1,Y) & (not visited(X+1,Y,_) | 
+          (visited(X+1,Y,CountE) & CountE < 2)) & Dir = e) |
+       (not saved_obstacle(X,Y-1) & (not visited(X,Y-1,_) | 
+          (visited(X,Y-1,CountN) & CountN < 2)) & Dir = n))) |
+          
+    (DirectionOffset = 3 &
+      ((not saved_obstacle(X,Y+1) & (not visited(X,Y+1,_) | 
+          (visited(X,Y+1,CountS) & CountS < 2)) & Dir = s) |
+       (not saved_obstacle(X+1,Y) & (not visited(X+1,Y,_) | 
+          (visited(X+1,Y,CountE) & CountE < 2)) & Dir = e) |
+       (not saved_obstacle(X,Y-1) & (not visited(X,Y-1,_) | 
+          (visited(X,Y-1,CountN) & CountN < 2)) & Dir = n) |
+       (not saved_obstacle(X-1,Y) & (not visited(X-1,Y,_) | 
+          (visited(X-1,Y,CountW) & CountW < 2)) & Dir = w)))).
 
-+!scan_environment : true <-
-    .findall(block(X,Y,Type), percept(block(X,Y,Type)), Blocks);
-    .findall(task(Id,Deadline,Reward,Reqs), task(Id,Deadline,Reward,Reqs), Tasks);
-    .print("Environment scan: ", Blocks.length, " blocks, ", Tasks.length, " tasks");
-    !prioritize_tasks(Tasks).
+/* Initial beliefs */
+state_machine(lost).
+my_position(0,0).
+visited(0,0,1). // Mark starting position as visited
 
-+!prioritize_tasks([]) : true <-
-    .print("No tasks available, exploring environment");
-    !explore.
-
-+!prioritize_tasks(Tasks) : true <-
-    // Sort tasks by reward/deadline ratio
-    .sort(Tasks, SortedTasks);
-    .nth(0, SortedTasks, BestTask);
-    BestTask = task(Id,Deadline,Reward,_);
-    .print("Selected task: ", Id, " with reward ", Reward, " and deadline ", Deadline);
-    !work_on_task(BestTask).
-
-+!work_on_task(task(Id,_,_,Requirements)) : true <-
-    .print("Working on task ", Id, " with requirements ", Requirements);
-    !gather_blocks(Requirements).
-
-/* Block Gathering */
-+!gather_blocks([]) : true <-
-    .print("All required blocks gathered");
-    !deliver_task.
-
-+!gather_blocks([req(Type,X,Y)|Rest]) : true <-
-    .print("Looking for block of type ", Type);
-    !find_block(Type).
-
-+!find_block(Type) : percept(block(X,Y,Type)) & my_position(MyX,MyY) & not carrying(_) <-
-    .print("Found block of type ", Type, " at position (", X, ", ", Y, ")");
-    !calculate_path(MyX, MyY, X, Y);
-    !move_to(X, Y);
-    !attach_block.
-
-+!find_block(Type) : true <-
-    .print("No visible block of type ", Type, ", exploring");
-    !explore.
-
-+!attach_block : my_position(X,Y) & percept(block(X,Y,_)) <-
-    .print("Attaching block at position (", X, ", ", Y, ")");
-    attach;
-    !find_tasks.
-
-+!attach_block : true <-
-    .print("No block at current position to attach");
-    !explore.
-
-/* Movement and Navigation */
-+!move_to(X, Y) : my_position(X, Y) <-
-    .print("Already at destination (", X, ", ", Y, ")").
-
-+!move_to(X, Y) : my_position(MyX, MyY) <-
-    // Determine best direction
-    if (MyX < X) {
-        Dir = e;
+!init.
+// IMPROVED: Better initialization with more diverse goals
++!init : .random(R1) & .random(R2) & .random(R3) & .my_name(Name) <- 
+    // Extract a number from the agent name (last character of name as number)
+    .length(Name, L);
+    .substring(Name, L-1, L, LastChar);
+    .term2string(LastCharNum, LastChar);
+    // Use different quadrant for each agent based on name
+    Quadrant = (LastCharNum mod 4);
+    
+    // Calculate direction based on quadrant
+    if (Quadrant = 0) {
+        Dx = 1; Dy = 1;  // Northeast
     } else {
-        if (MyX > X) {
-            Dir = w;
+        if (Quadrant = 1) {
+            Dx = -1; Dy = 1;  // Southeast
         } else {
-            if (MyY < Y) {
-                Dir = n;
+            if (Quadrant = 2) {
+                Dx = -1; Dy = -1;  // Southwest
             } else {
-                Dir = s;
+                Dx = 1; Dy = -1;  // Northwest
             }
         }
-    }
-    .print("Moving ", Dir, " towards (", X, ", ", Y, ")");
-    move(Dir);
-    !move_to(X, Y).
+    };
+    
+    // Randomize distance a bit
+    B = 300 + math.floor(R1 * 200);
+    
+    // Calculate goal, adding slight randomization
+    XVar = math.floor(R2 * 50) - 25;
+    YVar = math.floor(R3 * 50) - 25;
+    Gx = B * Dx + XVar;
+    Gy = B * Dy + YVar;
+    
+    +nav_goal(Gx, Gy);
+    .print("Initialized for ", Gx, " ", Gy, " (Quadrant ", Quadrant, ")").
 
-+!calculate_path(StartX, StartY, EndX, EndY) : true <-
-    .print("Calculating path from (", StartX, ", ", StartY, ") to (", EndX, ", ", EndY, ")");
-    // A* pathfinding would be implemented here
-    // For now we'll use simple direct path.
+// Activated for each step of the simulation
+@step[atomic]
++step(S) <-
+    !updateBeliefs;
+    !updateStateMachine;
+    !decideAction.
 
-/* Exploration */
-+!explore : true <-
-    .print("Exploring environment");
-    !move_random.
+/* Belief base plans */
++!updateBeliefs <-
+    !update_position;
+    !update_obstacles;
+    !get_goal;
+    !get_dispenser(b0);
+    !get_dispenser(b1);
+    !fix_task.
 
-+!move_random : true <-
-    .random(R);
-    if (R < 0.25) {
-        move(n);
+// Enhanced position update that tracks visit history
++!update_position : lastActionResult(success) & lastAction(move) & lastActionParams([Dir]) & dir_to_offset(Dir,Dx,Dy) & my_position(Ox,Oy) <- 
+    Nx=Ox+Dx; 
+    Ny=Oy+Dy; 
+    -my_position(Ox,Oy); 
+    +my_position(Nx,Ny);
+    // Track visit count for this cell
+    if (visited(Nx,Ny,Count)) {
+        -visited(Nx,Ny,Count);
+        NewCount = Count + 1;
+        +visited(Nx,Ny,NewCount);
     } else {
-        if (R < 0.5) {
-            move(s);
-        } else {
-            if (R < 0.75) {
-                move(e);
-            } else {
-                move(w);
-            }
-        }
-    }
-    .print("Moving randomly");
-    !scan_environment.
+        +visited(Nx,Ny,1);
+    }.
 
-/* Task Delivery */
-+!deliver_task : carrying(_) & percept(goal(X,Y)) <-
-    .print("Goal found at (", X, ", ", Y, "), delivering task");
-    !move_to(X, Y);
-    submit;
-    .print("Task submitted successfully!");
-    !find_tasks.
++!update_position : lastActionResult(failed_forbidden) & lastAction(move) & lastActionParams([Dir]) & state_machine(lost) & nav_goal(Ox,Oy) & dir_to_offset(Dir, Fx,Fy) & bounce(Fx,Dx) & bounce(Fy,Dy) <- 
+    -nav_goal(Ox,Oy); 
+    Nx=Ox*Dx; 
+    Ny=Oy*Dy; 
+    +nav_goal(Nx,Ny);
+    // Mark the blocked cell as an obstacle
+    my_position(Mx,My);
+    BlockedX = Mx + Fx;
+    BlockedY = My + Fy;
+    +saved_obstacle(BlockedX,BlockedY).
 
-+!deliver_task : carrying(_) <-
-    .print("Carrying block but goal not found, searching for goal");
-    !explore.
++!update_position : true <- true. // No change in position
 
-+!deliver_task : true <-
-    .print("Not carrying any block, cannot deliver");
-    !find_tasks.
++!update_obstacles : my_position(Mx,My) <- 
+    for (obstacle(Rx,Ry)) { 
+        X=Mx+Rx;
+        Y=My+Ry; 
+        if(not saved_obstacle(X,Y)) { 
+            +saved_obstacle(X,Y) 
+        }; 
+    }.
 
-/* Perception Handlers */
-+step(S) : true <-
-    .print("Step ", S);
-    !scan_environment.
++!get_goal : not chosen_goal(_,_) & goal(Rx,Ry) & my_position(Mx,My) & X=Rx+Mx & Y=Ry+My & Fy=Y+1 & not saved_obstacle(X,Fy) <- 
+    +chosen_goal(X,Y).
++!get_goal : true <- true.
 
-+my_position(X, Y) : true <-
-    .print("Position updated to (", X, ", ", Y, ")").
++!get_dispenser(BlockType) : not dispenser(BlockType,_,_) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & X=Rx+Mx & Y=Ry+My & not saved_obstacle(X,Y) & Fy=Y-1 & not saved_obstacle(X,Fy) <- 
+    +dispenser(BlockType,X,Y).
++!get_dispenser(BlockType) : dispenser(BlockType,OldX,OldY) & chosen_goal(GoalX,GoalY) & thing(Rx,Ry,dispenser,BlockType) & my_position(Mx,My) & NewX=Rx+Mx & NewY=Ry+My & not saved_obstacle(NewX,NewY) & Fy=NewY-1 & not saved_obstacle(NewX,Fy) & distance(OldX,OldY,GoalX,GoalY,OldDistance) & distance(NewX,NewY,GoalX,GoalY,NewDistance) & NewDistance < OldDistance <- 
+    -dispenser(BlockType,OldX,OldY); 
+    +dispenser(BlockType,NewX,NewY).
++!get_dispenser(_) : true <- true.
 
-+carrying(Block) : Block \== none <-
-    .print("Now carrying block: ", Block);
-    !deliver_task.
++!fix_task : current_task(TaskId, BlockType) & not task(TaskId,_,_,_) & task(NewTaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step <- 
+    -current_task(TaskId, BlockType); 
+    +current_task(NewTaskId, BlockType).
++!fix_task : true <- true.
 
-+carrying(none) : true <-
-    .print("Not carrying any block");
-    !find_tasks.
+/* State Machine plans */
++!updateStateMachine : state_machine(lost) & chosen_goal(_,_) & dispenser(b0, _,_) & dispenser(b1,_,_) <- 
+    -state_machine(lost); 
+    +state_machine(idle); 
+    .print("Fully initialized").
++!updateStateMachine : state_machine(lost) <- true.
 
-/* Error Handling */
--!find_tasks : true <-
-    .print("Error in find_tasks, retrying");
-    !explore.
++!updateStateMachine : state_machine(idle) & task(TaskId, Deadline, 10,[req(_,_,BlockType)] ) & step(Step) & Deadline > Step & dispenser(BlockType, Dx, Dy) & Gy=Dy-1 <- 
+    -nav_goal(_,_); 
+    +nav_goal(Dx,Gy);
+    +current_task(TaskId,BlockType); 
+    -state_machine(idle); 
+    +state_machine(toDispenser); 
+    .print("Picked task: ",TaskId).
++!updateStateMachine : state_machine(idle) <- true.
 
--!gather_blocks(_) : true <-
-    .print("Error in gather_blocks, retrying");
-    !explore.
++!updateStateMachine : state_machine(toDispenser) & my_position(Mx,My) & nav_goal(Mx,My) <- 
+    -nav_goal(Mx,My); 
+    -state_machine(toDispenser); 
+    +state_machine(atDispenser); 
+    .print("At dispenser").
++!updateStateMachine : state_machine(toDispenser) <- true.
 
--!deliver_task : true <-
-    .print("Error in deliver_task, retrying");
-    !explore.
++!updateStateMachine : state_machine(atDispenser) & lastActionResult(success) & lastAction(request) <- 
+    -state_machine(atDispenser); 
+    +state_machine(aboutToAttach); 
+    .print("Block requested").
++!updateStateMachine : state_machine(atDispenser) <- true.
+
++!updateStateMachine : state_machine(aboutToAttach) & lastActionResult(success) & lastAction(attach) & chosen_goal(Gx,Gy) <- 
+    +nav_goal(Gx,Gy); 
+    -state_machine(aboutToAttach); 
+    +state_machine(toGoal); 
+    .print("Block attached").
++!updateStateMachine : state_machine(aboutToAttach) <- true.
+
++!updateStateMachine : state_machine(toGoal) & my_position(Mx,My) & nav_goal(Mx,My) <- 
+    -nav_goal(Mx,My); 
+    -state_machine(toGoal); 
+    +state_machine(shouldSubmit);
+    .print("At goal").
++!updateStateMachine : state_machine(toGoal) <- true.
+
++!updateStateMachine : state_machine(shouldSubmit) & lastActionResult(success) & lastAction(submit) <- 
+    -current_task(_,_);
+    -state_machine(shouldSubmit); 
+    +state_machine(idle); 
+    .print("Task submitted").
++!updateStateMachine : state_machine(shouldSubmit) <- true.
+
+/* Action emitting plans */
++!decideAction : state_machine(idle) <- 
+    skip.
+
+// Enhanced navigation plan that uses the improved navigation strategies
++!decideAction : (state_machine(lost) | state_machine(toDispenser) | state_machine(toGoal)) & nav_goal(Dx,Dy) & my_position(Mx,My) <- 
+    ?navigate(Mx,My,Dx,Dy,Dir);
+    .print("Navigating from (", Mx, ",", My, ") to (", Dx, ",", Dy, ") with direction ", Dir);
+    move(Dir).
+
+// Fallback to random direction if navigation fails
++!decideAction : (state_machine(lost) | state_machine(toDispenser) | state_machine(toGoal)) & .random(R) & random_dir([n,s,e,w],R,Dir) <-
+    .print("Using random fallback direction: ", Dir);
+    move(Dir).
+
++!decideAction : state_machine(atDispenser) <- 
+    request(s).
+
++!decideAction : state_machine(aboutToAttach) <- 
+    attach(s).
+
++!decideAction : state_machine(shouldSubmit) & current_task(TaskId,_) <- 
+    submit(TaskId).
+
++!decideAction : true <- 
+    .print("Action failed").
