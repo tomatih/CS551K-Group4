@@ -71,7 +71,7 @@ new_nav(Mx,My,Gx,Gy,Dir) :-
 
 // simplistic navigation
 // just a diagonal b-line for the target with no regard for anything
-navigate(Ox,Oy,Dx,Dy,Dir) :- 
+navigate_diag(Ox,Oy,Dx,Dy,Dir) :- 
     ( 
         distance(Ox,Dy,Dx,Dy, Gx) & 
         distance(Dx,Oy,Dx,Dy,Gy) 
@@ -80,6 +80,66 @@ navigate(Ox,Oy,Dx,Dy,Dir) :-
         ( Gy>Gx & ((Oy<Dy & Dir = s ) | Dir=n )) |
         ( (Ox < Dx & Dir = e) | Dir = w )
     ).
+
+// Enhanced navigation logic that combines different strategies
+navigate(Ox,Oy,Dx,Dy,Dir) :- 
+
+    potential_field_navigate(Ox,Oy,Dx,Dy,Dir) |
+    // If potential field fails, fall back to weighted exploration
+    explore_navigate(Ox,Oy,Dx,Dy,Dir) |
+    // Last resort: simple direct navigation
+    simple_navigate(Ox,Oy,Dx,Dy,Dir).
+
+// Simple direct navigation 
+
+simple_navigate(Ox,Oy,Dx,Dy,Dir) :- 
+    ((Ox < Dx &  free(Ox+1,Oy) & Dir = e) |
+     (Ox > Dx &  free(Ox-1,Oy) & Dir = w) |
+     (Oy < Dy &  free(Ox,Oy+1) & Dir = s) |
+     (Oy > Dy &  free(Ox,Oy-1) & Dir = n) |
+     ( free(Ox+1,Oy) & Dir = e) |
+     ( free(Ox,Oy-1) & Dir = n) |
+     ( free(Ox-1,Oy) & Dir = w) |
+     ( free(Ox,Oy+1) & Dir = s)).
+
+// Helper functions
+abs(In,Out) :- (In<0 & Out=-In) | Out = In.
+delta(A,B,Out) :- Delta = A-B & abs(Delta,Out).
+distance(Ax,Ay,Bx,By,Dist) :- delta(Ax,Bx,Dx) & delta(Ay,By,Dy) & Dist = Dx+Dy.
+bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
+
+/* Potential field navigation implementation -*/
+potential_field_navigate(X,Y,GoalX,GoalY,Dir) :-
+    distance(X,Y,GoalX,GoalY,Dist) & Dist > 0 &
+    // Determine primary direction based on distance components
+    delta(X,GoalX,Dx) & delta(Y,GoalY,Dy) &
+    // Choose direction with bias toward larger distance component
+    ((Dx > Dy & X < GoalX &  free(X+1,Y) & Dir = e) |
+     (Dx > Dy & X > GoalX &  free(X-1,Y) & Dir = w) |
+     (Dx <= Dy & Y < GoalY &  free(X,Y+1) & Dir = s) |
+     (Dx <= Dy & Y > GoalY &  free(X,Y-1) & Dir = n)) &
+    // Get offset for this direction
+    dir_to_offset(Dir,OffX,OffY) &
+    // Calculate new position if we move in this direction
+    NewX = X + OffX &
+    NewY = Y + OffY &
+    // Avoid going back to recently visited cells if possible
+    (not visited(NewX,NewY,_) | 
+     visited(NewX,NewY,Count) & Count < 3).
+
+/* Memory-enhanced exploration navigation */
+// Exploration-based navigation using visit counts
+explore_navigate(X,Y,GoalX,GoalY,Dir) :-
+    // Try directions that haven't been visited or visited less frequently
+    ((free(X+1,Y) & (not visited(X+1,Y,_) | 
+        (visited(X+1,Y,CountE) & CountE < 2)) & Dir = e) |
+     (free(X,Y-1) & (not visited(X,Y-1,_) | 
+        (visited(X,Y-1,CountN) & CountN < 2)) & Dir = n) |
+     (free(X-1,Y) & (not visited(X-1,Y,_) | 
+        (visited(X-1,Y,CountW) & CountW < 2)) & Dir = w) |
+     (free(X,Y+1) & (not visited(X,Y+1,_) | 
+        (visited(X,Y+1,CountS) & CountS < 2)) & Dir = s)).
+
 
 // Distance between points + helper math rules
 abs(In,Out) :- (In<0 & Out=-In) | Out = In.
@@ -100,6 +160,9 @@ wall(n,0,-1000).
 wall(s,0, 1000).
 wall(e, 1000,0).
 wall(w,-1000,0).
+
+visited(0,0,1). // Mark starting position as visited
+
 
 /*--------------------------------------------------
                        Core
@@ -150,7 +213,14 @@ wall(w,-1000,0).
     Nx=Ox+Dx;
     Ny=Oy+Dy;
     -my_position(Ox,Oy);
-    +my_position(Nx,Ny).
+    +my_position(Nx,Ny);
+    if (visited(Nx,Ny,Count)) {
+        -visited(Nx,Ny,Count);
+        NewCount = Count + 1;
+        +visited(Nx,Ny,NewCount);
+    } else {
+        +visited(Nx,Ny,1);
+    }.
 +!update_position : 
     (lastActionResult(failed_forbidden) | lastActionResult(failed_path)) & 
     lastAction(move) & 
@@ -390,7 +460,7 @@ wall(w,-1000,0).
 	state_machine(lost) &
 	nav_goal(Dx,Dy) & 
     my_position(Mx,My) & 
-    navigate(Mx,My,Dx,Dy,Dir)  
+    navigate_diag(Mx,My,Dx,Dy,Dir)  
     <-
     move(Dir).
 +!decideAction : 
@@ -400,7 +470,7 @@ wall(w,-1000,0).
     ) &
     nav_goal(Dx,Dy) & 
     my_position(Mx,My) & 
-    new_nav(Mx,My,Dx,Dy,Dir) 
+    navigate(Mx,My,Dx,Dy,Dir) 
     <- 
     -last_move(_);
     +last_move(Dir);
