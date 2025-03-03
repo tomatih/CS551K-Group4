@@ -38,7 +38,6 @@ free(X,Y) :-
 // before adding to list chech for freeness
 // if not free multiply by big number
 // then on move choose minimum from that list
-//TODO: disincentivise backtracking
 new_nav(Mx,My,Gx,Gy,Dir) :- 
 	(
 		Ny = My-1 &
@@ -56,8 +55,19 @@ new_nav(Mx,My,Gx,Gy,Dir) :-
 		( (not free(Mx,Sy) & Smult=BigNum) | Smult = 1) &
 		( (not free(Ex,My) & Emult=BigNum) | Emult = 1) &
 		( (not free(Wx,My) & Wmult=BigNum) | Wmult = 1) 
-	) & 
-	.min([c(Nd*Nmult,n),c(Sd*Smult,s),c(Ed*Emult,e),c(Wd*Wmult,w) ],c(_,Dir)).
+	) & (
+        Penalty = 5 &
+        ( (last_move(s) & Noff=Penalty ) | Noff=0 ) &
+        ( (last_move(n) & Soff=Penalty ) | Soff=0 ) &
+        ( (last_move(w) & Eoff=Penalty ) | Eoff=0 ) &
+        ( (last_move(e) & Woff=Penalty ) | Woff=0 )
+    ) & (
+        Nval = (Nd+Noff)*Nmult & 
+        Sval = (Sd+Soff)*Smult & 
+        Eval = (Ed+Eoff)*Emult & 
+        Wval = (Wd+Woff)*Wmult
+    ) &
+	.min([c(Nval,n),c(Sval,s),c(Eval,e),c(Wval,w) ],c(_,Dir)).
 
 // simplistic navigation
 // just a diagonal b-line for the target with no regard for anything
@@ -84,6 +94,7 @@ bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
 --------------------------------------------------*/
 state_machine(lost). // the starting state of the top level state machine
 my_position(0,0). // initial position in the personal global coodinate space
+last_move(none). // dummy before first actual move 
 // know that the world end somewhere not exactly sure where, but far
 wall(n,0,-1000).
 wall(s,0, 1000).
@@ -283,6 +294,8 @@ wall(w,-1000,0).
     nav_goal(Mx,My) 
     <-
     -nav_goal(Mx,My); 
+    -last_move(_);
+    +last_move(none);
     -state_machine(toDispenser);
     +state_machine(atDispenser);
     .print("At dispenser").
@@ -324,7 +337,9 @@ wall(w,-1000,0).
     my_position(Mx,My) & 
     nav_goal(Mx,My) 
     <- 
-    -nav_goal(Mx,My); 
+    -nav_goal(Mx,My);
+    -last_move(_);
+    +last_move(none);
     -state_machine(toGoal); 
     +state_machine(shouldSubmit);
     .print("At goal").
@@ -368,6 +383,8 @@ wall(w,-1000,0).
     my_position(Mx,My) & 
     new_nav(Mx,My,Dx,Dy,Dir) 
     <- 
+    -last_move(_);
+    +last_move(Dir);
     move(Dir).
 
 

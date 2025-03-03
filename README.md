@@ -13,8 +13,9 @@ TODO:
   - [ ] 2 positions + obstacle map and a direction out for Voldy
   - [ ] Calum should make his own state machine that can be then acted on within my lost state
   - [ ] Up to the other 2 how they want to implement that
-- [ ] re-add obstacle avoidance (med priority)
 - [ ] add rotation and optimisations for that (low priority ATM)
-- [ ] add awareness of walls (generalised rule free(x,y) would be in place)
-- [ ] goal submission failures still exist (FIX)
+- [ ] goal submission failures still exist (FIX) (Do they, or just not enough tasks?)
 - [ ] check if diagonal movement impacts them gettign stuck more
+- [ ] new failure mode, starts going right until hits the wall then works again??? might have sth to do with failed movment while carrying
+- [ ] a terrain,gap,terrain setup paralyzes agents in exploration
+- [ ] when n wall found do a check to purge dispensers that are too close
