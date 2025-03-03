@@ -40,7 +40,27 @@ bounce(In,Out) :- (In=0 & Out=1) | ( (In=-1 | In=1) & Out=-1 ).
 --------------------------------------------------*/
 state_machine(lost). // the starting state of the top level state machine
 my_position(0,0). // initial position in the personal global coodinate space
+free_dirs([n, s, e, w]).  // Default: all directions open
 
+/*--------------------------------------------------
+                  Free Direction
+--------------------------------------------------*/
+
+// perceive obstacle, update free direction
++obstacle(X, Y) <-
+    ?my_position(MyX, MyY);
+    ?free_dirs(Dirs);
+    remove_blocked_direction(X, Y, MyX, MyY, Dirs, NewDirs);
+    -free_dirs(__);
+    +free_dirs(NewDirs);
+
+remove_blocked_direction(X, Y, MyX, MyY, Dirs, NewDirs) :-
+    (X = MyX & Y = MyY - 1 & NewDirs = remove(n, Dirs)) |
+    (X = MyX & Y = MyY + 1 & NewDirs = remove(s, Dirs)) |
+    (X = MyX + 1 & Y = MyY & NewDirs = remove(e, Dirs)) |
+    (X = MyX - 1 & Y = MyY & NewDirs = remove(w, Dirs)) |
+    NewDirs = Dirs.
+    
 /*--------------------------------------------------
                        Core
 --------------------------------------------------*/
@@ -48,18 +68,23 @@ my_position(0,0). // initial position in the personal global coodinate space
 !init.
 // pick a random diagonal direction and start exploring there
 +!init : 
-    .random(RandomNumber) &
-    choice_4([a(1,1),a(1,-1),a(-1,1),a(-1,-1)],RandomNumber,a(Dx,Dy))
-    <- 
-    B=500; // a sufficiently big number to de definetly out of the board
-    Gx=B*Dx;
-    Gy=B*Dy; 
-    +nav_goal(Gx,Gy); 
-    .print("Initialized for ",Gx," ",Gy).
+    // .random(RandomNumber) &
+    // choice_4([a(1,1),a(1,-1),a(-1,1),a(-1,-1)],RandomNumber,a(Dx,Dy))
+    // <- 
+    // B=500; // a sufficiently big number to de definetly out of the board
+    // Gx=B*Dx;
+    // Gy=B*Dy; 
+    // +nav_goal(Gx,Gy); 
+    // .print("Initialized for ",Gx," ",Gy).
+    .print("init").
+    !move_to_bottom_left.
 
 // Activated for each step of the simulation (quanta of this world)
 // only children of this plan are allowed to emit actions
 @step[atomic]
++step(s) : state_machine(spawn) <-
+    !move_to_bottom_left
+
 +step(S) <-
     //.print("Step: ",S," start");
     !updateBeliefs;
@@ -314,52 +339,62 @@ my_position(0,0). // initial position in the personal global coodinate space
 // should never trigger, here to prevent plan failure
 +!decideAction : true <- .print("Action faield").
 
-// Calum addition for movement logic
-//
-@step[atomic]
-+step(S) : state_machine(lost) <-
-    .print("Step: ", S, " calling movement plan");
-    !move_lost.
 
-// lost block handling
-+!move_lost <-
-    ?free_directions(Dirs);
-    (.member(e, Dirs) -> move(e);
-     .member(s, Dirs) -> move(s);
-     .print("blocked, stopping"))
++!move_to_bottom_left <-
+    ?free_dirs(Dirs)
+    (member(s, Dirs) -> move(s);
+    member(w, Dirs) -> move(w);
+    .print("bottom left reached, auction idle");
+    -state_machine(spawn);
+    +state_machine(wait_for_auction);
+    !wait_for_auction).
 
-/*--------------------------------------------------
-    movement to be auctioned
---------------------------------------------------*/
+// whatever auction assignemt is made
++!wait_for_auction <-
+    .print("Waiting for auction").
 
-// move up left wall
-+!move_up_wall <-
-    ?free_directions(Dirs);
-    (.member(n, Dirs) -> move(n);
-     .print("blocked up, stopping"))
+// paths
 
-// move right along top wall
-+!move_right_wall <-
-    ?free_directions(Dirs);
-    (.member(e, Dirs) -> move(e);
-     .print("blocked right, stopping"))
++!move_start <-
+    .print("move on auctioned path");
+    move(start_pos);
+    ?at_start_pos -> !start_mapping.
 
-// move down along right wall
-+!move_down_wall <-
-    ?free_directions(Dirs);
-    (.member(s, Dirs) -> move(s);
-     .print("blocked down, stopping"))
+// cross path movement begin
++!start_mapping <-
+    .print("start cross mapping");
+    !move_cross.
 
-// move left along bottom wall
-+!move_left_wall <-
-    ?free_directions(Dirs);
-    (.member(w, Dirs) -> move(w);
-     .print("blocked left, stopping"))
+// diagonal movement for cross map
+// maybe use mateusz diagonal movement 
+// ne = north east
++!move_cross <- 
+    ?free_dirs(Dirs);
+    (member(ne, Dirs) -> move(ne);
+    member(s, Dirs) -> move (s);
+    .print("fully blocked, recalculate");
+    !recalculate_path).
 
-// move diagonal for cross map intersection
-+!move_cross <-
-    ?free_directions(Dirs);
-    (.member(ne, Dirs) -> move(ne);
-     .print("blocked diagonally, stopping"))
++!recalculate_path <-
+    .print("recalculate new path");
+    ?find_alt_path(new_path);
+    move(new_path);
+    !continue_cross.
 
-//
+// after obstacle continue cross section
++!continue_cross <-
+    .print("continuing map cross section");
+    !move_cross.
+
+// hazard handling
++!handle_hazard <-
+    .print("hazard detected, avoid");
+    ?free_dirs(Dirs);
+    (member(w, Dirs) -> move(w);
+    member(s, Dirs) -> move(s);
+    .print("immovable hazard")).
+
+// complete cross map
++!complete_path <-
+    .print("cross path completed, idle");
+    +state_machine(idle).
