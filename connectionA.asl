@@ -18,13 +18,13 @@ dir_to_offset(Dir,X,Y) :-
 // check if a given block is free
 //TODO: handle resizing
 free(X,Y) :- 
-    not saved_obstacle(X,Y) &
+    (not saved_obstacle(X,Y)) &
     (
         my_position(Mx,My) &
         Ox = X-Mx &
         Oy = Y-My &
-        not thing(Ox,Oy,entity,_) &
-        (not thing(Ox,Oy,block,_) | holding(Ox,Oy) )
+        (not thing(Ox,Oy,entity,_)) &
+        ((not thing(Ox,Oy,block,_)) | holding(Ox,Oy) )
     )&
     (
         wall(n,_,Ymin) & wall(s,_, Ymax) &
@@ -51,10 +51,10 @@ new_nav(Mx,My,Gx,Gy,Dir) :-
 		distance(Wx,My,Gx,Gy,Wd) 
 	) & (
 		BigNum = 10000 &
-		( (not free(Mx,Ny) & Nmult=BigNum) | Nmult = 1) &
-		( (not free(Mx,Sy) & Smult=BigNum) | Smult = 1) &
-		( (not free(Ex,My) & Emult=BigNum) | Emult = 1) &
-		( (not free(Wx,My) & Wmult=BigNum) | Wmult = 1) 
+		( ((not free(Mx,Ny)) & Nmult=BigNum) | Nmult = 1) &
+		( ((not free(Mx,Sy)) & Smult=BigNum) | Smult = 1) &
+		( ((not free(Ex,My)) & Emult=BigNum) | Emult = 1) &
+		( ((not free(Wx,My)) & Wmult=BigNum) | Wmult = 1) 
 	) & (
         Penalty = 5 &
         ( (last_move(s) & Noff=Penalty ) | Noff=0 ) &
@@ -185,13 +185,14 @@ wall(w,-1000,0).
 
 // bind to the first seen valid goal
 +!get_goal : 
-    not chosen_goal(_,_) & 
+    (not chosen_goal(_,_)) & 
     goal(Rx,Ry) & 
     my_position(Mx,My) & 
     X=Rx+Mx & 
     Y=Ry+My & 
+    (not saved_obstacle(X,Y)) &
     Fy=Y+1 & 
-    not saved_obstacle(X,Fx) 
+    (not saved_obstacle(X,Fx)) 
     <- 
     +chosen_goal(X,Y).
 //if both dispensers set, anf a goal seen, if the goal is closer to both of them, rebind
@@ -203,14 +204,15 @@ wall(w,-1000,0).
     my_position(Mx,My) & 
     X=Rx+Mx & 
     Y=Ry+My & 
+    (not saved_obstacle(X,Y)) &
     Fy=Y+1 & 
-    not saved_obstacle(X,Fx) &
+    (not saved_obstacle(X,Fx)) &
     distance(Ox,Oy,Xb0,Yb0, Dob0) &
     distance(Ox,Oy,Xb1,Yb1, Dob1) &
     distance(X,Y,Xb0,Yb0, Dnb0) &
     distance(X,Y,Xb1,Yb1, Dnb1) &
-    Dnb0 < Dob0 &
-    Dnb1 < Dnb0 
+    (Dnb0 < Dob0) &
+    (Dnb1 < Dnb0) 
     <-
     -chosen_goal(Ox,Oy);
     +chosen_goal(X,Y).
@@ -219,14 +221,14 @@ wall(w,-1000,0).
 
 // bind to first seen dispenser of each type
 +!get_dispenser(BlockType) : 
-    not dispenser(BlockType,_,_) & 
+    (not dispenser(BlockType,_,_)) & 
     thing(Rx,Ry,dispenser,BlockType) & 
     my_position(Mx,My) & 
     X=Rx+Mx & 
     Y=Ry+My & 
-    not saved_obstacle(X,Y) & 
+    (not saved_obstacle(X,Y)) & 
     Fy=Y-1 & 
-    not saved_obstacle(X,Fy) 
+    (not saved_obstacle(X,Fy)) 
     <- 
     +dispenser(BlockType,X,Y).
 // if a dispenser is seen that is closer to the bound goal switch to it
@@ -237,9 +239,9 @@ wall(w,-1000,0).
     my_position(Mx,My) & 
     NewX=Rx+Mx & 
     NewY=Ry+My & 
-    not saved_obstacle(NewX,NewY) & 
+    (not saved_obstacle(NewX,NewY) )& 
     Fy=Y-1 & 
-    not saved_obstacle(X,Fy) & 
+    (not saved_obstacle(X,Fy) )& 
     distance(OldX,OldY,GoalX,GoalY,OldDistance) & 
     distance(NewX,NewY,GoalX,GoalY,NewDistance) & 
     NewDistance < OldDistance
@@ -253,7 +255,7 @@ wall(w,-1000,0).
 // find a new task for the same block type
 +!fix_task : 
     current_task(TaskId, BlockType) &
-    not task(TaskId,_,_,_) & 
+    (not task(TaskId,_,_,_) )& 
     task(NewTaskId, Deadline, 10,[req(_,_,BlockType)] ) &
     step(Step) &
     Deadline > Step 
