@@ -23,7 +23,7 @@ free(X,Y) :-
         my_position(Mx,My) &
         Ox = X-Mx &
         Oy = Y-My &
-        (not thing(Ox,Oy,entity,_)) &
+        (not thing(Ox,Oy,entity,_)) & // why does this not work??
         ((not thing(Ox,Oy,block,_)) | holding(Ox,Oy) )
     )&
     (
@@ -69,7 +69,13 @@ new_nav(Mx,My,Gx,Gy,Dir) :-
     ) &
 	.min([c(Nval,n),c(Sval,s),c(Eval,e),c(Wval,w) ],c(_,Dir)).
 
-
+//-101
+// WME
+// xxx
+// ___ Ny -1
+// _A_ My  0
+// _B_ Sy +1
+// ___ Sy +2
 new_nav_carry(Mx,My,Gx,Gy,Dir) :-
     (
         Ex = Mx+1 &
@@ -85,7 +91,7 @@ new_nav_carry(Mx,My,Gx,Gy,Dir) :-
     ) & (
         BigNum = 10000 &
         ( ((not free(Mx,Ny)) & Nmult=BigNum) | Nmult = 1) &
-        ( ((not free(Mx,S2y)) & Smult=BigNum) | Smult = 1) &
+        ( ((not free(Mx,Sy2)) & Smult=BigNum) | Smult = 1) &
         ( ((not free(Ex,My)) & (not free(Ex,Sy)) & Emult=BigNum) | Emult = 1) &
         ( ((not free(Wx,My)) & (not free(Wx,Sy)) & Wmult=BigNum) | Wmult = 1) 
     ) & (
