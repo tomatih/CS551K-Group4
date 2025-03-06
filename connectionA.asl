@@ -69,6 +69,40 @@ new_nav(Mx,My,Gx,Gy,Dir) :-
     ) &
 	.min([c(Nval,n),c(Sval,s),c(Eval,e),c(Wval,w) ],c(_,Dir)).
 
+
+new_nav_carry(Mx,My,Gx,Gy,Dir) :-
+    (
+        Ex = Mx+1 &
+        Wx = Mx-1 &
+        Ny = My-1 &
+        Sy = My+1 &
+        Sy2 = My+2 
+    ) & (
+        distance(Mx,Ny,Gx,Gy,Nd) &
+        distance(Mx,Sy,Gx,Gy,Sd) &
+        distance(Ex,My,Gx,Gy,Ed) &
+        distance(Wx,My,Gx,Gy,Wd) 
+    ) & (
+        BigNum = 10000 &
+        ( ((not free(Mx,Ny)) & Nmult=BigNum) | Nmult = 1) &
+        ( ((not free(Mx,S2y)) & Smult=BigNum) | Smult = 1) &
+        ( ((not free(Ex,My)) & (not free(Ex,Sy)) & Emult=BigNum) | Emult = 1) &
+        ( ((not free(Wx,My)) & (not free(Wx,Sy)) & Wmult=BigNum) | Wmult = 1) 
+    ) & (
+        Penalty = 5 &
+        ( (last_move(s) & Noff=Penalty ) | Noff=0 ) &
+        ( (last_move(n) & Soff=Penalty ) | Soff=0 ) &
+        ( (last_move(w) & Eoff=Penalty ) | Eoff=0 ) &
+        ( (last_move(e) & Woff=Penalty ) | Woff=0 )
+    ) & (
+        Nval = (Nd+Noff)*Nmult & 
+        Sval = (Sd+Soff)*Smult & 
+        Eval = (Ed+Eoff)*Emult & 
+        Wval = (Wd+Woff)*Wmult
+    ) &
+    .min([c(Nval,n),c(Sval,s),c(Eval,e),c(Wval,w) ],c(_,Dir)). 
+
+
 // simplistic navigation
 // just a diagonal b-line for the target with no regard for anything
 navigate(Ox,Oy,Dx,Dy,Dir) :- 
@@ -396,10 +430,7 @@ wall(w,-1000,0).
     <-
     move(Dir).
 +!decideAction : 
-    (
-        state_machine(toDispenser) | 
-        state_machine(toGoal)
-    ) &
+    state_machine(toDispenser)&
     nav_goal(Dx,Dy) & 
     my_position(Mx,My) & 
     new_nav(Mx,My,Dx,Dy,Dir) 
@@ -407,7 +438,15 @@ wall(w,-1000,0).
     -last_move(_);
     +last_move(Dir);
     move(Dir).
-
++!decideAction :
+    state_machine(toGoal) &
+    nav_goal(Dx,Dy) & 
+    my_position(Mx,My) & 
+    new_nav_carry(Mx,My,Dx,Dy,Dir) 
+    <- 
+    -last_move(_);
+    +last_move(Dir);
+    move(Dir).
 
 +!decideAction : state_machine(atDispenser) <- request(s).
 
